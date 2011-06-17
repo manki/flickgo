@@ -1,0 +1,12 @@
+# Vim files
+\..*\.swp
+\..*\.un~
+
+# Go compiler output
+.*.6
+.*.8
+.*.a
+8\.out
+
+# Go generated files
+_testmain\..*
