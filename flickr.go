@@ -1,3 +1,5 @@
+// Copyright 2011 Muthukannan T <manki@manki.in>. All Rights Reserved.
+
 // Flickr library for Go.
 // Created to be used primarily in Google App Engine.
 package flickgo

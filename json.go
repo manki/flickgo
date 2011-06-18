@@ -1,3 +1,5 @@
+// Copyright 2011 Muthukannan T <manki@manki.in>. All Rights Reserved.
+
 package flickgo
 
 import (
