@@ -8,7 +8,6 @@ import (
   "fmt"
   "http"
   "io"
-  "json"
   "log"
   "multipart_writer"
   "os"
@@ -16,6 +15,7 @@ import (
   "regexp"
   "sort"
   "strings"
+  "xml"
 )
 
 const (
@@ -87,7 +87,6 @@ func signedURL(secret string, apiKey string, path string, args map[string]string
 func url(c *Client, method string, args map[string]string) string {
   a := clone(args)
   a["method"] = method
-  a["format"] = "json"
   if len(c.AuthToken) > 0 {
     a["auth_token"] = c.AuthToken
   }
@@ -109,61 +108,41 @@ func extractJSON(jsonp []byte) []byte {
 }
 
 // Processes a response and returns JSON content from it.
-func processReponse(c *Client, r *http.Response) ([]byte, os.Error) {
+func processReponse(c *Client, r *http.Response) (io.ReadCloser, os.Error) {
   // TODO: handle error response codes like 401 and 500.
 
-  defer r.Body.Close()
-  buf, readErr := c.readFn(r.Body)
-  if readErr != nil {
-    return nil, readErr
-  }
-  return extractJSON(buf), nil
+  return r.Body, nil
 }
 
-func parseJSON(data []byte, resp interface{}) os.Error {
-  // Try to parse the response as error.  Both success and failure responses
-  // have a 'stat' field; if stat != "ok" the request was successful.
-  r := flickrError{}
-  if err := json.Unmarshal(data, &r); err != nil {
-    return os.NewError(err.String() + "; JSON=" + string(data))
-  }
-  if r.Stat != "ok" {
-    return os.NewError(fmt.Sprintf("Flickr error code %d: %s",
-                                   r.Code, r.Message))
-  }
-
-  if err := json.Unmarshal(data, resp); err != nil {
-    return os.NewError(err.String() + "; JSON=" + string(data))
+func parseXML(in io.Reader, resp interface{}) os.Error {
+  buf := bytes.NewBuffer(nil)
+  io.Copy(buf, in)
+  log.Printf("Parsing XML %s", string(buf.Bytes()))
+  if err := xml.Unmarshal(buf, resp); err != nil {
+    return wrapErr("XML parsing failed", err)
   }
   return nil
 }
 
 // Sends a GET request to u and returns the response JSON.
-func fetch(c *Client, u string) ([]byte, os.Error) {
+func fetch(c *Client, u string) (io.ReadCloser, os.Error) {
   r, _, getErr := c.httpClient.Get(u)
   if getErr != nil {
-    return nil, getErr
+    return nil, wrapErr("GET failed", getErr)
   }
   return processReponse(c, r)
-}
-
-// Flickr's JSON error objects have the same structure.
-type flickrError struct {
-  Stat string
-  Code int
-  Message string
 }
 
 // Sends a Flickr request, parses the response JSON and populates values in
 // resp.  url represents the complete Flickr request with the arguments signed
 // with the API secret.
 func flickrGet(c *Client, url string, resp interface{}) os.Error {
-  data, err := fetch(c, url)
+  in, err := fetch(c, url)
   if err != nil {
     return err
   }
-  log.Printf("JSON received: %s", string(data))
-  return parseJSON(data, resp)
+  defer in.Close()
+  return parseXML(in, resp)
 }
 
 func flickrPost(c *Client, req *http.Request, resp interface{}) os.Error {
@@ -171,12 +150,12 @@ func flickrPost(c *Client, req *http.Request, resp interface{}) os.Error {
   if rErr != nil {
     return rErr
   }
-  data, pErr := processReponse(c, r)
+  in, pErr := processReponse(c, r)
   if pErr != nil {
-    return pErr
+    return wrapErr("error response", pErr)
   }
-  log.Printf("JSON received: %s", string(data))
-  return parseJSON(data, resp)
+  defer in.Close()
+  return parseXML(in, resp)
 }
 
 var contentType = map[string]string{
@@ -214,7 +193,6 @@ func uploadRequest(c *Client, filename string, photo []byte,
   a := clone(args)
   a["api_key"] = c.apiKey
   a["auth_token"] = c.AuthToken
-  a["format"] = "json"
   a["async"] = "1"
   a["api_sig"] = sign(c.secret, a)
 

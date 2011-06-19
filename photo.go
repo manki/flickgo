@@ -20,25 +20,25 @@ const (
 
 // Response for photo search requests.
 type SearchResponse struct {
-  Page int
-  Pages int
-  PerPage int
-  Total string
-  Photos []Photo "photo"
+  Page string    "attr"
+  Pages string   "attr"
+  PerPage string "attr"
+  Total string   "attr"
+  Photos []Photo "photo>"
 }
 
 // Represents a Flickr photo.
 type Photo struct {
-  Id string
-  Owner string
-  Secret string
-  Server string
-  Farm int
-  Title string
+  Id string     "attr"
+  Owner string  "attr"
+  Secret string "attr"
+  Server string "attr"
+  Farm string   "attr"
+  Title string  "attr"
 }
 
 // Returns the URL to this photo in the specified size.
 func (p *Photo) URL(size string) string {
-  return fmt.Sprintf("http://farm%d.static.flickr.com/%s/%s_%s_%s.jpg",
+  return fmt.Sprintf("http://farm%s.static.flickr.com/%s/%s_%s_%s.jpg",
                      p.Farm, p.Server, p.Id, p.Secret, size)
 }

@@ -124,11 +124,11 @@ func TestFetchHttpGetFails(t *testing.T) {
   c := New(apiKey, secret, newHTTPClient(getFn))
 
   resp, e := fetch(c, url)
-  assertEq(t, "resp", 0, len(resp))
-  assertEq(t, "err", fmt.Sprintf("Get %s: %s", url, err), e.String())
+  assert(t, "resp", resp == nil)
+  assertEq(t, "err", fmt.Sprintf("GET failed: Get %s: %s", url, err), e.String())
 }
 
-func TestFetchReadFails(t *testing.T) {
+func xTestFetchReadFails(t *testing.T) {
   url := "http://some.url/?arg=value"
   err := os.NewError("random error")
 
@@ -161,9 +161,12 @@ func TestFetchSuccess(t *testing.T) {
   }
   c := New(apiKey, secret, newHTTPClient(getFn))
 
-  actualData, e := fetch(c, url)
+  in, e := fetch(c, url)
   assertOK(t, "fetch", e)
-  assert(t, "data", bytes.Equal(expectedData, actualData))
+  buf := bytes.NewBuffer(nil)
+  _, cErr := io.Copy(buf, in)
+  assertOK(t, "copy", cErr)
+  assert(t, "data", bytes.Equal(expectedData, buf.Bytes()))
 }
 
 func TestUploadRequest(t *testing.T) {
@@ -183,7 +186,6 @@ func TestUploadRequest(t *testing.T) {
 
   args["api_key"] = apiKey
   args["auth_token"] = authToken
-  args["format"] = "json"
   args["async"] = "1"
   apiSig := sign(secret, args)
 
@@ -192,13 +194,12 @@ func TestUploadRequest(t *testing.T) {
     assertEq(t, key + " len", 1, len(form.Value[key]))
     assertEq(t, key, value, form.Value[key][0])
   }
-  assertEq(t, "value len", 7, len(form.Value))
+  assertEq(t, "value len", 6, len(form.Value))
   verify("title", "kitten")
   verify("description", "my cute kitten")
   verify("api_key", apiKey)
   verify("auth_token", authToken)
   verify("api_sig", apiSig)
-  verify("format", "json")
   verify("async", "1")
 
   assertEq(t, "file len", 1, len(form.File))
@@ -218,7 +219,7 @@ func TestUploadRequest(t *testing.T) {
 // Tests for flickr.go
 //
 func TestAuthURL(t *testing.T) {
-  c := New(apiKey, secret, http.DefaultClient)
+  c := New(apiKey, secret, nil)
 
   u, uErr := http.ParseURL(c.AuthURL(ReadPerm))
   assertOK(t, "parseURL", uErr)
@@ -236,7 +237,7 @@ func TestAuthURL(t *testing.T) {
 
 func TestGetTokenURL(t *testing.T) {
   frob := "837cjnei"
-  c := New(apiKey, secret, http.DefaultClient)
+  c := New(apiKey, secret, nil)
 
   u, uErr := http.ParseURL(getTokenURL(c, frob))
   assertOK(t, "parseURL", uErr)
@@ -248,14 +249,13 @@ func TestGetTokenURL(t *testing.T) {
   assertEq(t, "api_sig", 1, len(args["api_sig"]))
 }
 
-func TestGetTokenApiFailure(t *testing.T) {
-  jsonStr := `jsonFlickrApi({
-    "stat": "fail",
-    "code": 97,
-    "message": "Missing signature"
-  })`
-  jsonBytes := bytes.NewBufferString(jsonStr).Bytes()
-  body := fakeBody{data: jsonBytes}
+func TestGetTokenAPIFailure(t *testing.T) {
+  xmlStr := `<?xml version="1.0" encoding="utf-8"?>
+    <rsp stat="fail">
+      <err code="97" msg="Missing signature"/>
+    </rsp>`
+  xmlBytes := bytes.NewBufferString(xmlStr).Bytes()
+  body := fakeBody{data: xmlBytes}
   currentBody = body
   resp := http.Response{Body: body}
   getFn := func(r *http.Request) (*http.Response, os.Error) {
@@ -269,20 +269,16 @@ func TestGetTokenApiFailure(t *testing.T) {
 }
 
 func TestGetToken(t *testing.T) {
-  jsonStr := `jsonFlickrApi({
-    "stat": "ok",
-    "auth": {
-      "token": {"_content": "121-84669832774"},
-      "perms": {"_content": "write"},
-      "user": {
-        "nsid": "7687633@N01",
-        "username": "testuser",
-        "fullname": "Test User"
-      }
-    }
-  })`
-  jsonBytes := bytes.NewBufferString(jsonStr).Bytes()
-  body := fakeBody{data: jsonBytes}
+  xmlStr := `<?xml version="1.0" encoding="utf-8"?>
+    <rsp stat="ok">
+      <auth>
+        <token>121-84669832774</token>
+        <perms>write</perms>
+        <user nsid="7687633@N01" username="testuser" fullname="Test User"/>
+      </auth>
+    </rsp>`
+  xmlBytes := bytes.NewBufferString(xmlStr).Bytes()
+  body := fakeBody{data: xmlBytes}
   currentBody = body
   resp := http.Response{Body: body}
   getFn := func(r *http.Request) (*http.Response, os.Error) {
@@ -295,13 +291,12 @@ func TestGetToken(t *testing.T) {
 }
 
 func TestUploadFails(t *testing.T) {
-  jsonStr := `jsonFlickrApi({
-    "stat": "fail",
-    "code": 5,
-    "message": "Filetype was not recognised"
-  })`
-  jsonBytes := bytes.NewBufferString(jsonStr).Bytes()
-  body := fakeBody{data: jsonBytes}
+  xmlStr := `<?xml version="1.0" encoding="utf-8"?>
+    <rsp stat="fail">
+      <err code="5" msg="Filetype was not recognised"/>
+    </rsp>`
+  xmlBytes := bytes.NewBufferString(xmlStr).Bytes()
+  body := fakeBody{data: xmlBytes}
   currentBody = body
   resp := http.Response{Body: body}
   postFn := func(r *http.Request) (*http.Response, os.Error) {
@@ -316,12 +311,12 @@ func TestUploadFails(t *testing.T) {
 }
 
 func TestUpload(t *testing.T) {
-  jsonStr := `jsonFlickrApi({
-    "stat": "ok",
-    "ticketid": "363"
-  })`
-  jsonBytes := bytes.NewBufferString(jsonStr).Bytes()
-  body := fakeBody{data: jsonBytes}
+  xmlStr := `<?xml version="1.0" encoding="utf-8"?>
+    <rsp stat="ok">
+      <ticketid>363</ticketid>
+    </rsp>`
+  xmlBytes := bytes.NewBufferString(xmlStr).Bytes()
+  body := fakeBody{data: xmlBytes}
   currentBody = body
   resp := http.Response{Body: body}
   postFn := func(r *http.Request) (*http.Response, os.Error) {
@@ -332,4 +327,74 @@ func TestUpload(t *testing.T) {
                           map[string]string{})
   assertOK(t, "upload", err)
   assertEq(t, "ticket", "363", ticket)
+}
+
+func TestSearchURL(t *testing.T) {
+  args := map[string]string{
+      "per_page": "10",
+      "user_id": "me",
+      }
+  c := New(apiKey, secret, nil)
+
+  u, uErr := http.ParseURL(searchURL(c, args))
+  assertOK(t, "parseURL", uErr)
+  a, err := http.ParseQuery(u.RawQuery)
+  assertOK(t, "parseQuery", err)
+  assertEq(t, "method", "flickr.photos.search", a["method"][0])
+  assertEq(t, "per_page", "10", a["per_page"][0])
+  assertEq(t, "user_id", "me", a["user_id"][0])
+  assertEq(t, "api_key", apiKey, a["api_key"][0])
+  assertEq(t, "api_sig", 1, len(a["api_sig"]))
+}
+
+func TestSearch(t *testing.T) {
+  xmlStr := `<?xml version="1.0" encoding="utf-8"?>
+    <rsp stat="ok">
+      <photos page="1" pages="3" perpage="2" total="5">
+      <photo id="1234" owner="22@N01" secret="63562" server="3" farm="1"
+             title="kitten" ispublic="0" isfriend="1" isfamily="1"/>
+      <photo id="5678" owner="22@N01" secret="36221" server="32" farm="4"
+             title="puppies" ispublic="0" isfriend="0" isfamily="0"/>
+      </photos>
+    </rsp>`
+  xmlBytes := bytes.NewBufferString(xmlStr).Bytes()
+  body := fakeBody{data: xmlBytes}
+  currentBody = body
+  resp := http.Response{Body: body}
+  getFn := func(r *http.Request) (*http.Response, os.Error) {
+    return &resp, nil
+  }
+  c := New(apiKey, secret, newHTTPClient(getFn))
+  r, err := c.Search(map[string]string{})
+  assertOK(t, "search", err)
+  assertEq(t, "page", "1", r.Page)
+  assertEq(t, "pages", "3", r.Pages)
+  assertEq(t, "perpage", "2", r.PerPage)
+  assertEq(t, "total", "5", r.Total)
+  assertEq(t, "len photos", 2, len(r.Photos))
+
+  verify := func(p Photo, idx int,
+                 id, owner, secret, server, farm, title string) {
+    assertEq(t, fmt.Sprintf("%d.id", idx), id, p.Id)
+    assertEq(t, fmt.Sprintf("%d.owner", idx), owner, p.Owner)
+    assertEq(t, fmt.Sprintf("%d.secret", idx), secret, p.Secret)
+    assertEq(t, fmt.Sprintf("%d.server", idx), server, p.Server)
+    assertEq(t, fmt.Sprintf("%d.farm", idx), farm, p.Farm)
+    assertEq(t, fmt.Sprintf("%d.title", idx), title, p.Title)
+  }
+  verify(r.Photos[0], 0, "1234", "22@N01", "63562", "3", "1", "kitten")
+  verify(r.Photos[1], 1, "5678", "22@N01", "36221", "32", "4", "puppies")
+}
+
+func TestURL(t *testing.T) {
+  p := Photo{
+    Id: "id",
+    Owner: "owner",
+    Secret: "secret",
+    Server: "server",
+    Farm: "fx",
+    Title: "title",
+  }
+  assertEq(t, "url", "http://farmfx.static.flickr.com/server/id_secret_-.jpg",
+           p.URL(SizeMedium500))
 }

@@ -5,6 +5,7 @@
 package flickgo
 
 import (
+  "fmt"
   "http"
   "io"
   "io/ioutil"
@@ -69,18 +70,29 @@ func getTokenURL(c *Client, frob string) string {
   return url(c, "flickr.auth.getToken", map[string]string{ "frob": frob })
 }
 
+type flickrError struct {
+  Code string "attr"
+  Msg string "attr"
+}
+
 // Exchanges a temporary frob for a token that's valid forever.
 // See http://www.flickr.com/services/api/auth.howto.web.html.
 func (c *Client) GetToken(frob string) (string, os.Error) {
   r := struct {
+    Stat string "attr"
+    Err flickrError
     Auth struct {
-      Token struct { Content string "_content" }
+      Token string
     }
   }{}
   if err := flickrGet(c, getTokenURL(c, frob), &r); err != nil {
     return "", err
   }
-  return r.Auth.Token.Content, nil
+  if r.Stat != "ok" {
+    return "", os.NewError(fmt.Sprintf("Flickr error code %s: %s",
+                                       r.Err.Code, r.Err.Msg))
+  }
+  return r.Auth.Token, nil
 }
 
 // Returns URL for Flickr photo search.
@@ -92,10 +104,16 @@ func searchURL(c *Client, args map[string]string) string {
 // http://www.flickr.com/services/api/flickr.photos.search.html.
 func (c *Client) Search(args map[string]string) (*SearchResponse, os.Error) {
   r := struct {
+    Stat string "attr"
+    Err flickrError
     Photos SearchResponse
   }{}
   if err := flickrGet(c, searchURL(c, args), &r); err != nil {
     return nil, err
+  }
+  if r.Stat != "ok" {
+    return nil, os.NewError(fmt.Sprintf("Flickr error code %s: %s",
+                                        r.Err.Code, r.Err.Msg))
   }
   return &r.Photos, nil
 }
@@ -110,10 +128,16 @@ func (c *Client) Upload(name string, photo []byte,
   }
 
   resp := struct {
+    Stat string "attr"
+    Err flickrError
     TicketID string
   }{}
   if err := flickrPost(c, req, &resp); err != nil {
     return "", wrapErr("uploading failed", err)
+  }
+  if resp.Stat != "ok" {
+    return "", os.NewError(fmt.Sprintf("Flickr error code %s: %s",
+                                       resp.Err.Code, resp.Err.Msg))
   }
   return resp.TicketID, nil
 }
