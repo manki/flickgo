@@ -9,6 +9,7 @@ import (
   "hash"
   "http"
   "io"
+  "io/ioutil"
   "os"
   "strings"
   "testing"
@@ -39,26 +40,37 @@ func assertEq(t *testing.T, id string, expected interface{}, actual interface{})
 }
 
 
+//-----------------------
+// Tests for request.go
+//
 func write(h hash.Hash, s string) {
   h.Write([]byte(s))
 }
 
-func TestSign(t *testing.T) {
-  args := make(map[string]string)
-  args["abc"] = "abc def"
-  args["xyz"] = "xyz"
-  args["123"] = "98765"
-
+func TestSignedURL(t *testing.T) {
   m := md5.New()
   write(m, secret)
   write(m, "123" + "98765")
   write(m, "abc" + "abc+def")
   write(m, "api_key" + "apap983+key")
   write(m, "xyz" + "xyz")
-  expected := fmt.Sprintf("http://www.flickr.com/services/srv/?" +
-      "123=98765&abc=abc+def&api_key=apap983+key&xyz=xyz&api_sig=%x", m.Sum())
+  sig := fmt.Sprintf("%x", m.Sum())
 
-  actual := sign(secret, "apap983 key", "srv", args)
+  args := map[string]string{
+      "abc": "abc def",
+      "xyz": "xyz",
+      "123": "98765",
+      }
+  argsMm := map[string][]string{
+      "abc": []string{"abc def"},
+      "xyz": []string{"xyz"},
+      "123": []string{"98765"},
+      "api_key": []string{"apap983 key"},
+      "api_sig": []string{sig},
+      }
+
+  expected := "http://www.flickr.com/services/srv/?" + http.EncodeQuery(argsMm)
+  actual := signedURL(secret, "apap983 key", "srv", args)
   assertEq(t, "url", expected, actual)
 }
 
@@ -154,7 +166,50 @@ func TestFetchSuccess(t *testing.T) {
   assert(t, "data", bytes.Equal(expectedData, actualData))
 }
 
+func TestUploadRequest(t *testing.T) {
+  data := []byte("123456\n78910\nasdfoiu\nasdfeejh")
+  filename := "kitten.jpg"
+  args := map[string]string{
+      "title": "kitten",
+      "description": "my cute kitten",
+      }
+  authToken := "ase878723623"
+  c := New(apiKey, secret, nil)
+  c.AuthToken = authToken
+  req, rqErr := uploadRequest(c, filename, data, args)
+  assertOK(t, "uploadRequest", rqErr)
 
+  args["api_key"] = apiKey
+  args["auth_token"] = authToken
+  apiSig := sign(secret, args)
+
+  form := req.MultipartForm
+  assertEq(t, "value len", 5, len(form.Value))
+  assertEq(t, "title len", 1, len(form.Value["title"]))
+  assertEq(t, "title", "kitten", form.Value["title"][0])
+  assertEq(t, "description len", 1, len(form.Value["description"]))
+  assertEq(t, "description", "my cute kitten", form.Value["description"][0])
+  assertEq(t, "api_key len", 1, len(form.Value["api_key"]))
+  assertEq(t, "api_key", apiKey, form.Value["api_key"][0])
+  assertEq(t, "auth_token len", 1, len(form.Value["auth_token"]))
+  assertEq(t, "auth_token", authToken, form.Value["auth_token"][0])
+  assertEq(t, "api_sig len", 1, len(form.Value["api_sig"]))
+  assertEq(t, "api_sig", apiSig, form.Value["api_sig"][0])
+
+  assertEq(t, "file len", 1, len(form.File))
+  assertEq(t, "photo len", 1, len(form.File["photo"]))
+  assertEq(t, "filename", filename, form.File["photo"][0].Filename)
+  file, oErr := form.File["photo"][0].Open()
+  assertOK(t, "file open", oErr)
+  actual, rdErr := ioutil.ReadAll(file)
+  assertOK(t, "read file", rdErr)
+  assertEq(t, "photo", string(data), string(actual))
+}
+
+
+//-----------------------
+// Tests for flickr.go
+//
 func TestAuthURL(t *testing.T) {
   c := New(apiKey, secret, http.DefaultClient)
 

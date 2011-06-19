@@ -61,7 +61,7 @@ func New(apiKey string, secret string, httpClient *http.Client) *Client {
 func (c *Client) AuthURL(perms string) string {
   args := map[string]string{}
   args["perms"] = perms
-  return sign(c.secret, c.apiKey, "auth", args)
+  return signedURL(c.secret, c.apiKey, "auth", args)
 }
 
 // Returns the signed URL for Flickr's flickr.auth.getToken request.

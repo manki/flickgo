@@ -3,19 +3,21 @@
 package flickgo
 
 import (
+  "bytes"
   "crypto/md5"
   "fmt"
   "http"
   "json"
   "log"
+  "multipart_writer"
   "os"
   "regexp"
   "sort"
-  "strings"
 )
 
 const (
   service = "http://www.flickr.com/services"
+  uploadURL = "http://api.flickr.com/services/upload"
 )
 
 // Returns all keys of map m.
@@ -29,36 +31,64 @@ func keys(m map[string]string) sort.StringArray {
   return ks
 }
 
+// Converts a map[string]string to a map[string][]string by boxing each value
+// into a single-element array.
+func multimap(m map[string]string) map[string][]string {
+  r := make(map[string][]string)
+  for k, v := range m {
+    r[k] = []string{v}
+  }
+  return r
+}
+
+// Clones a string -> string map.
+func clone(m map[string]string) map[string]string {
+  r := make(map[string]string)
+  for k, v := range m {
+    r[k] = v
+  }
+  return r
+}
+
+// Returns an API signature for the given arguments.
+func sign(secret string, args map[string]string) string {
+  ks := keys(args)
+  ks.Sort()
+  m := md5.New()
+  m.Write([]byte(secret))
+  for _, k := range ks {
+    m.Write([]byte(k + http.URLEscape(args[k])))
+  }
+  return fmt.Sprintf("%x", m.Sum())
+}
+
 // Returns a signed URL.  path should be "auth" for auth requests and "rest"
 // for all other requests.  args specifies the query arguments.  Signing of the
 // URL is done by adding "api_sig" argument to the query string, whose value is
 // derived by signing the query values with secret.
-func sign(secret string, apiKey string, path string, args map[string]string) string {
-  args["api_key"] = apiKey
-  ks := keys(args)
-  ks.Sort()
-  parts := make([]string, len(ks) + 1)
-  m := md5.New()
-  m.Write([]byte(secret))
-  for i, k := range ks {
-    value := http.URLEscape(args[k])
-    parts[i] = fmt.Sprintf("%s=%s", k, value)
-    m.Write([]byte(k + value))
-  }
-  parts[len(ks)] = fmt.Sprintf("api_sig=%x", m.Sum())
-  return fmt.Sprintf("%s/%s/?", service, path) + strings.Join(parts, "&")
+func signedURL(secret string, apiKey string, path string, args map[string]string) string {
+  a := clone(args)
+  a["api_key"] = apiKey
+  a["api_sig"] = sign(secret, a)
+  qry := http.EncodeQuery(multimap(a))
+  return fmt.Sprintf("%s/%s/?%s", service, path, qry)
 }
 
-// Returns a signed URL for invoking a Flickr method.
+// Returns a URL for invoking a Flickr method with the specified arguments.  If
+// c has its AuthToken field set, the auth token is added to the URL.  Returned
+// URL is always signed with c.secret.
 func url(c *Client, method string, args map[string]string) string {
-  args["method"] = method
-  args["format"] = "json"
+  a := clone(args)
+  a["method"] = method
+  a["format"] = "json"
   if len(c.AuthToken) > 0 {
-    args["auth_token"] = c.AuthToken
+    a["auth_token"] = c.AuthToken
   }
-  return sign(c.secret, c.apiKey, "rest", args)
+  return signedURL(c.secret, c.apiKey, "rest", a)
 }
 
+// Regular expressions for identifying non-JSON part of the JSONP response
+// returned by Flickr.
 var (
   begin = regexp.MustCompile(`^[ \t\n]*jsonFlickrApi\(`)
   end = regexp.MustCompile(`\)[ \t\n]*$`)
@@ -120,4 +150,39 @@ func flickrGet(c *Client, url string, resp interface{}) os.Error {
     return os.NewError(err.String() + "; JSON=" + string(data))
   }
   return nil
+}
+
+func uploadRequest(c *Client, filename string, photo []byte,
+                   args map[string]string) (*http.Request, os.Error) {
+  a := clone(args)
+  a["api_key"] = c.apiKey
+  a["auth_token"] = c.AuthToken
+  a["api_sig"] = sign(c.secret, a)
+  buf := bytes.NewBuffer(make([]byte, len(photo) * 2))
+  mpw := multipart_writer.NewWriter(buf)
+  for k, v := range a {
+    if err := mpw.WriteField(k, v); err != nil {
+      return nil, err
+    }
+  }
+  w, cErr := mpw.CreateFormFile("photo", filename)
+  if cErr != nil {
+    return nil, cErr
+  }
+  if _, err := w.Write(photo); err != nil {
+    return nil, cErr
+  }
+  if err := mpw.Close(); err != nil {
+    return nil, cErr
+  }
+
+  req, rErr := http.NewRequest("POST", uploadURL, buf)
+  if rErr != nil {
+    return nil, rErr
+  }
+  req.Header.Set("Content-Type", mpw.FormDataContentType())
+  if err := req.ParseMultipartForm(int64(len(photo) * 2)); err != nil {
+    return nil, err
+  }
+  return req, nil
 }
