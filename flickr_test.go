@@ -168,7 +168,7 @@ func TestFetchSuccess(t *testing.T) {
 
 func TestUploadRequest(t *testing.T) {
   data := []byte("123456\n78910\nasdfoiu\nasdfeejh")
-  filename := "kitten.jpg"
+  filename := "kitten.JPEG"
   args := map[string]string{
       "title": "kitten",
       "description": "my cute kitten",
@@ -202,6 +202,8 @@ func TestUploadRequest(t *testing.T) {
   assertEq(t, "file len", 1, len(form.File))
   assertEq(t, "photo len", 1, len(form.File["photo"]))
   assertEq(t, "filename", filename, form.File["photo"][0].Filename)
+  assertEq(t, "filetype", "image/jpeg",
+           form.File["photo"][0].Header.Get("Content-Type"))
   file, oErr := form.File["photo"][0].Open()
   assertOK(t, "file open", oErr)
   actual, rdErr := ioutil.ReadAll(file)

@@ -12,8 +12,10 @@ import (
   "log"
   "multipart_writer"
   "os"
+  "path/filepath"
   "regexp"
   "sort"
+  "strings"
 )
 
 const (
@@ -153,6 +155,14 @@ func flickrGet(c *Client, url string, resp interface{}) os.Error {
   return nil
 }
 
+var contentType = map[string]string{
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".jpe": "image/jpeg",
+  ".gif": "image/gif",
+  ".png": "image/png",
+}
+
 func multipartWriter(w io.Writer, filename string, photo []byte,
                      args map[string]string) (*multipart_writer.Writer, os.Error) {
   mpw := multipart_writer.NewWriter(w)
@@ -161,7 +171,8 @@ func multipartWriter(w io.Writer, filename string, photo []byte,
       return nil, err
     }
   }
-  w, cErr := mpw.CreateFormFile("photo", filename)
+  w, cErr := mpw.CreateFormFile("photo", filename,
+                                contentType[strings.ToLower(filepath.Ext(filename))])
   if cErr != nil {
     return nil, cErr
   }
