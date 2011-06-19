@@ -83,10 +83,13 @@ func (c *Client) GetToken(frob string) (string, os.Error) {
   return r.Auth.Token.Content, nil
 }
 
+// Returns URL for Flickr photo search.
 func searchURL(c *Client, args map[string]string) string {
   return url(c, "flickr.photos.search", args)
 }
 
+// Searches for photos.  args contains search parameters as described in
+// http://www.flickr.com/services/api/flickr.photos.search.html.
 func (c *Client) Search(args map[string]string) (*SearchResponse, os.Error) {
   r := struct {
     Photos SearchResponse

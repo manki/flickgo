@@ -18,6 +18,7 @@ const (
   service = "http://www.flickr.com/services"
 )
 
+// Returns all keys of map m.
 func keys(m map[string]string) sort.StringArray {
   ks := make([]string, len(m))
   i := 0
@@ -28,6 +29,10 @@ func keys(m map[string]string) sort.StringArray {
   return ks
 }
 
+// Returns a signed URL.  path should be "auth" for auth requests and "rest"
+// for all other requests.  args specifies the query arguments.  Signing of the
+// URL is done by adding "api_sig" argument to the query string, whose value is
+// derived by signing the query values with secret.
 func sign(secret string, apiKey string, path string, args map[string]string) string {
   args["api_key"] = apiKey
   ks := keys(args)
@@ -44,6 +49,7 @@ func sign(secret string, apiKey string, path string, args map[string]string) str
   return fmt.Sprintf("%s/%s/?", service, path) + strings.Join(parts, "&")
 }
 
+// Returns a signed URL for invoking a Flickr method.
 func url(c *Client, method string, args map[string]string) string {
   args["method"] = method
   args["format"] = "json"
