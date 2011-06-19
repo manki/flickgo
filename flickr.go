@@ -83,23 +83,6 @@ func (c *Client) GetToken(frob string) (string, os.Error) {
   return r.Auth.Token.Content, nil
 }
 
-type SearchResponse struct {
-  Page int
-  Pages int
-  PerPage int
-  Total string
-  Photos []Photo "photo"
-}
-
-type Photo struct {
-  Id string
-  Owner string
-  Secret string
-  Server string
-  Farm int
-  Title string
-}
-
 func searchURL(c *Client, args map[string]string) string {
   return url(c, "flickr.photos.search", args)
 }
