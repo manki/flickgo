@@ -128,26 +128,6 @@ func TestFetchHttpGetFails(t *testing.T) {
   assertEq(t, "err", fmt.Sprintf("GET failed: Get %s: %s", url, err), e.String())
 }
 
-func xTestFetchReadFails(t *testing.T) {
-  url := "http://some.url/?arg=value"
-  err := os.NewError("random error")
-
-  body := fakeBody{error: err}
-  currentBody = body
-  resp := http.Response{Body: body}
-  getFn := func(r *http.Request) (*http.Response, os.Error) {
-    assertEq(t, "url", url, r.URL.String())
-    return &resp, nil
-  }
-  c := New(apiKey, secret, newHTTPClient(getFn))
-  c.readFn = func(r io.Reader) ([]byte, os.Error) {
-    return make([]byte, 0), err
-  }
-
-  _, e := fetch(c, url)
-  assertEq(t, "err", err, e)
-}
-
 func TestFetchSuccess(t *testing.T) {
   url := "http://some.url/?arg=value"
 

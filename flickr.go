@@ -7,8 +7,6 @@ package flickgo
 import (
   "fmt"
   "http"
-  "io"
-  "io/ioutil"
   "os"
 )
 
@@ -33,10 +31,6 @@ type Client struct {
 
   // Client to use for HTTP communication.
   httpClient *http.Client
-
-  // Indirection for ioutil.ReadAll; tests should stub out this field if they
-  // use a fake io.Reader.
-  readFn func(r io.Reader) (buf []byte, err os.Error)
 }
 
 // Creates a new Client object.  See
@@ -48,7 +42,6 @@ func New(apiKey string, secret string, httpClient *http.Client) *Client {
        apiKey: apiKey,
        secret: secret,
        httpClient: httpClient,
-       readFn: ioutil.ReadAll,
        }
 }
 
