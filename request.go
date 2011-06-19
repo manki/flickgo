@@ -7,6 +7,7 @@ import (
   "crypto/md5"
   "fmt"
   "http"
+  "io"
   "json"
   "log"
   "multipart_writer"
@@ -152,15 +153,10 @@ func flickrGet(c *Client, url string, resp interface{}) os.Error {
   return nil
 }
 
-func uploadRequest(c *Client, filename string, photo []byte,
-                   args map[string]string) (*http.Request, os.Error) {
-  a := clone(args)
-  a["api_key"] = c.apiKey
-  a["auth_token"] = c.AuthToken
-  a["api_sig"] = sign(c.secret, a)
-  buf := bytes.NewBuffer(make([]byte, len(photo) * 2))
-  mpw := multipart_writer.NewWriter(buf)
-  for k, v := range a {
+func multipartWriter(w io.Writer, filename string, photo []byte,
+                     args map[string]string) (*multipart_writer.Writer, os.Error) {
+  mpw := multipart_writer.NewWriter(w)
+  for k, v := range args {
     if err := mpw.WriteField(k, v); err != nil {
       return nil, err
     }
@@ -170,10 +166,27 @@ func uploadRequest(c *Client, filename string, photo []byte,
     return nil, cErr
   }
   if _, err := w.Write(photo); err != nil {
-    return nil, cErr
+    return nil, err
   }
   if err := mpw.Close(); err != nil {
-    return nil, cErr
+    return nil, err
+  }
+  return mpw, nil
+}
+
+func uploadRequest(c *Client, filename string, photo []byte,
+                   args map[string]string) (*http.Request, os.Error) {
+  a := clone(args)
+  a["api_key"] = c.apiKey
+  a["auth_token"] = c.AuthToken
+  a["format"] = "json"
+  a["async"] = "1"
+  a["api_sig"] = sign(c.secret, a)
+
+  buf := bytes.NewBuffer(make([]byte, len(photo) * 2))
+  mpw, wErr := multipartWriter(buf, filename, photo, a)
+  if wErr != nil {
+    return nil, wErr
   }
 
   req, rErr := http.NewRequest("POST", uploadURL, buf)

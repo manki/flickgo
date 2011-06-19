@@ -21,9 +21,9 @@ const (
 )
 
 
-func assert(t *testing.T, id string, cond bool) {
+func assert(t *testing.T, tag string, cond bool) {
   if !cond {
-    t.Errorf("[%s] assertion failed", id)
+    t.Errorf("[%s] assertion failed", tag)
   }
 }
 
@@ -181,20 +181,23 @@ func TestUploadRequest(t *testing.T) {
 
   args["api_key"] = apiKey
   args["auth_token"] = authToken
+  args["format"] = "json"
+  args["async"] = "1"
   apiSig := sign(secret, args)
 
   form := req.MultipartForm
-  assertEq(t, "value len", 5, len(form.Value))
-  assertEq(t, "title len", 1, len(form.Value["title"]))
-  assertEq(t, "title", "kitten", form.Value["title"][0])
-  assertEq(t, "description len", 1, len(form.Value["description"]))
-  assertEq(t, "description", "my cute kitten", form.Value["description"][0])
-  assertEq(t, "api_key len", 1, len(form.Value["api_key"]))
-  assertEq(t, "api_key", apiKey, form.Value["api_key"][0])
-  assertEq(t, "auth_token len", 1, len(form.Value["auth_token"]))
-  assertEq(t, "auth_token", authToken, form.Value["auth_token"][0])
-  assertEq(t, "api_sig len", 1, len(form.Value["api_sig"]))
-  assertEq(t, "api_sig", apiSig, form.Value["api_sig"][0])
+  verify := func(key, value string) {
+    assertEq(t, key + " len", 1, len(form.Value[key]))
+    assertEq(t, key, value, form.Value[key][0])
+  }
+  assertEq(t, "value len", 7, len(form.Value))
+  verify("title", "kitten")
+  verify("description", "my cute kitten")
+  verify("api_key", apiKey)
+  verify("auth_token", authToken)
+  verify("api_sig", apiSig)
+  verify("format", "json")
+  verify("async", "1")
 
   assertEq(t, "file len", 1, len(form.File))
   assertEq(t, "photo len", 1, len(form.File["photo"]))
