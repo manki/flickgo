@@ -29,7 +29,7 @@ func assert(t *testing.T, tag string, cond bool) {
 
 func assertOK(t *testing.T, id string, err os.Error) {
   if err != nil {
-    t.Errorf("[%s] unexpcted error: <%v>", id, err)
+    t.Errorf("[%s] unexpcted error: %v", id, err)
   }
 }
 
@@ -123,7 +123,7 @@ func TestFetchHttpGetFails(t *testing.T) {
   }
   c := New(apiKey, secret, newHTTPClient(getFn))
 
-  resp, e := c.fetch(url)
+  resp, e := fetch(c, url)
   assertEq(t, "resp", 0, len(resp))
   assertEq(t, "err", fmt.Sprintf("Get %s: %s", url, err), e.String())
 }
@@ -144,7 +144,7 @@ func TestFetchReadFails(t *testing.T) {
     return make([]byte, 0), err
   }
 
-  _, e := c.fetch(url)
+  _, e := fetch(c, url)
   assertEq(t, "err", err, e)
 }
 
@@ -161,7 +161,7 @@ func TestFetchSuccess(t *testing.T) {
   }
   c := New(apiKey, secret, newHTTPClient(getFn))
 
-  actualData, e := c.fetch(url)
+  actualData, e := fetch(c, url)
   assertOK(t, "fetch", e)
   assert(t, "data", bytes.Equal(expectedData, actualData))
 }
@@ -178,6 +178,8 @@ func TestUploadRequest(t *testing.T) {
   c.AuthToken = authToken
   req, rqErr := uploadRequest(c, filename, data, args)
   assertOK(t, "uploadRequest", rqErr)
+  pErr := req.ParseMultipartForm(128)
+  assertOK(t, "parseForm", pErr)
 
   args["api_key"] = apiKey
   args["auth_token"] = authToken
@@ -290,4 +292,44 @@ func TestGetToken(t *testing.T) {
   tok, err := c.GetToken("878243")
   assertOK(t, "GetToken", err)
   assertEq(t, "token", "121-84669832774", tok)
+}
+
+func TestUploadFails(t *testing.T) {
+  jsonStr := `jsonFlickrApi({
+    "stat": "fail",
+    "code": 5,
+    "message": "Filetype was not recognised"
+  })`
+  jsonBytes := bytes.NewBufferString(jsonStr).Bytes()
+  body := fakeBody{data: jsonBytes}
+  currentBody = body
+  resp := http.Response{Body: body}
+  postFn := func(r *http.Request) (*http.Response, os.Error) {
+    return &resp, nil
+  }
+  c := New(apiKey, secret, newHTTPClient(postFn))
+  ticket, err := c.Upload("filename", []byte("photo content"),
+                          map[string]string{})
+  assert(t, "message: " + err.String(),
+         strings.Contains(err.String(), "code 5: Filetype was not recognised"))
+  assertEq(t, "ticket", "", ticket)
+}
+
+func TestUpload(t *testing.T) {
+  jsonStr := `jsonFlickrApi({
+    "stat": "ok",
+    "ticketid": "363"
+  })`
+  jsonBytes := bytes.NewBufferString(jsonStr).Bytes()
+  body := fakeBody{data: jsonBytes}
+  currentBody = body
+  resp := http.Response{Body: body}
+  postFn := func(r *http.Request) (*http.Response, os.Error) {
+    return &resp, nil
+  }
+  c := New(apiKey, secret, newHTTPClient(postFn))
+  ticket, err := c.Upload("filename", make([]byte, 1024 * 1024),
+                          map[string]string{})
+  assertOK(t, "upload", err)
+  assertEq(t, "ticket", "363", ticket)
 }

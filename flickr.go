@@ -99,3 +99,21 @@ func (c *Client) Search(args map[string]string) (*SearchResponse, os.Error) {
   }
   return &r.Photos, nil
 }
+
+// Initiates an asynchronous photo upload and returns the ticket ID.  See
+// http://www.flickr.com/services/api/upload.async.html for details.
+func (c *Client) Upload(name string, photo []byte,
+                        args map[string]string) (ticketId string, err os.Error) {
+  req, uErr := uploadRequest(c, name, photo, args)
+  if (uErr != nil) {
+    return "", wrapErr("request creation failed", uErr)
+  }
+
+  resp := struct {
+    TicketID string
+  }{}
+  if err := flickrPost(c, req, &resp); err != nil {
+    return "", wrapErr("uploading failed", err)
+  }
+  return resp.TicketID, nil
+}
