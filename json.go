@@ -4,8 +4,8 @@ package flickgo
 
 import (
   "fmt"
-  "http"
   "json"
+  "log"
   "os"
 )
 
@@ -19,11 +19,12 @@ type flickrError struct {
 // Sends a Flickr request, parses the response JSON and populates values in
 // resp.  url represents the complete Flickr request with the arguments signed
 // with the API secret.
-func requestFlickr(c *Client, url *http.URL, resp interface{}) os.Error {
+func flickrGet(c *Client, url string, resp interface{}) os.Error {
   data, err := c.fetch(url)
   if err != nil {
     return err
   }
+  log.Printf("JSON received: %s", string(data))
 
   // Try to parse the response as error.  Both success and failure responses
   // have a 'stat' field; if stat != "ok" the request was successful.

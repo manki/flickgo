@@ -59,7 +59,7 @@ func TestSign(t *testing.T) {
       "123=98765&abc=abc+def&api_key=apap983+key&xyz=xyz&api_sig=%x", m.Sum())
 
   actual := sign(secret, "apap983 key", "srv", args)
-  assertEq(t, "url", expected, actual.String())
+  assertEq(t, "url", expected, actual)
 }
 
 
@@ -111,8 +111,7 @@ func TestFetchHttpGetFails(t *testing.T) {
   }
   c := New(apiKey, secret, newHTTPClient(getFn))
 
-  u, _ := http.ParseURL(url)
-  resp, e := c.fetch(u)
+  resp, e := c.fetch(url)
   assertEq(t, "resp", 0, len(resp))
   assertEq(t, "err", fmt.Sprintf("Get %s: %s", url, err), e.String())
 }
@@ -133,8 +132,7 @@ func TestFetchReadFails(t *testing.T) {
     return make([]byte, 0), err
   }
 
-  u, _ := http.ParseURL(url)
-  _, e := c.fetch(u)
+  _, e := c.fetch(url)
   assertEq(t, "err", err, e)
 }
 
@@ -151,8 +149,7 @@ func TestFetchSuccess(t *testing.T) {
   }
   c := New(apiKey, secret, newHTTPClient(getFn))
 
-  u, _ := http.ParseURL(url)
-  actualData, e := c.fetch(u)
+  actualData, e := c.fetch(url)
   assertOK(t, "fetch", e)
   assert(t, "data", bytes.Equal(expectedData, actualData))
 }
@@ -161,9 +158,10 @@ func TestFetchSuccess(t *testing.T) {
 func TestAuthURL(t *testing.T) {
   c := New(apiKey, secret, http.DefaultClient)
 
-  u := c.AuthURL(ReadPerm)
-  args, err := http.ParseQuery(u.RawQuery)
-  assertOK(t, "parseQuery", err)
+  u, uErr := http.ParseURL(c.AuthURL(ReadPerm))
+  assertOK(t, "parseURL", uErr)
+  args, qErr := http.ParseQuery(u.RawQuery)
+  assertOK(t, "parseQuery", qErr)
 
   for _, key := range []string{"api_key", "perms", "api_sig"} {
     if (len(args[key]) != 1) {
@@ -178,7 +176,8 @@ func TestGetTokenURL(t *testing.T) {
   frob := "837cjnei"
   c := New(apiKey, secret, http.DefaultClient)
 
-  u := getTokenURL(c, frob)
+  u, uErr := http.ParseURL(getTokenURL(c, frob))
+  assertOK(t, "parseURL", uErr)
   args, err := http.ParseQuery(u.RawQuery)
   assertOK(t, "parseQuery", err)
   assertEq(t, "method", "flickr.auth.getToken", args["method"][0])

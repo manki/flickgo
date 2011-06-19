@@ -9,6 +9,7 @@ import (
   "os"
   "regexp"
   "sort"
+  "strings"
 )
 
 const (
@@ -25,34 +26,29 @@ func keys(m map[string]string) sort.StringArray {
   return ks
 }
 
-func sign(secret string, apiKey string, path string, args map[string]string) *http.URL {
+func sign(secret string, apiKey string, path string, args map[string]string) string {
   args["api_key"] = apiKey
   ks := keys(args)
   ks.Sort()
-  s := fmt.Sprintf("%s/%s/?", service, path)
+  parts := make([]string, len(ks) + 1)
   m := md5.New()
   m.Write([]byte(secret))
-  for _, k := range ks {
+  for i, k := range ks {
     value := http.URLEscape(args[k])
-    s += fmt.Sprintf("%s=%s&", k, value)
+    parts[i] = fmt.Sprintf("%s=%s", k, value)
     m.Write([]byte(k + value))
   }
-  s += fmt.Sprintf("api_sig=%x", m.Sum())
-  u, err := http.ParseURL(s)
-  if err != nil {
-    panic("URL parsing failed")
-  }
-  return u
+  parts[len(ks)] = fmt.Sprintf("api_sig=%x", m.Sum())
+  return fmt.Sprintf("%s/%s/?", service, path) + strings.Join(parts, "&")
 }
 
-func (c *Client) url(method string, args map[string]string) *http.URL {
-  a := make(map[string]string)
-  for k, v := range args {
-    a[k] = v
+func url(c *Client, method string, args map[string]string) string {
+  args["method"] = method
+  args["format"] = "json"
+  if len(c.AuthToken) > 0 {
+    args["auth_token"] = c.AuthToken
   }
-  a["method"] = method
-  a["format"] = "json"
-  return sign(c.secret, c.apiKey, "rest", a)
+  return sign(c.secret, c.apiKey, "rest", args)
 }
 
 var (
@@ -68,8 +64,8 @@ func extractJSON(jsonp []byte) []byte {
 }
 
 // Sends a GET request to u and returns the response bytes.
-func (c *Client) fetch(u *http.URL) ([]byte, os.Error) {
-  r, _, getErr := c.httpClient.Get(u.String())
+func (c *Client) fetch(u string) ([]byte, os.Error) {
+  r, _, getErr := c.httpClient.Get(u)
   if getErr != nil {
     return nil, getErr
   }

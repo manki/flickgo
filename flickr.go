@@ -21,6 +21,9 @@ const (
 
 // Flickr client.
 type Client struct {
+  // Auth token for acting on behalf of a user.
+  AuthToken string
+
   // API key for your app.
   apiKey string
 
@@ -35,10 +38,10 @@ type Client struct {
   readFn func(r io.Reader) (buf []byte, err os.Error)
 }
 
-// Creates a new Client object.  See http://www.flickr.com/services/api/keys/
-// for learning about API key and secret.  For App Engine apps, you can create
-// httpClient by calling urlfetch.Client function; other apps can pass
-// http.DefaultClient.
+// Creates a new Client object.  See
+// http://www.flickr.com/services/api/misc.api_keys.html for learning about API
+// key and secret.  For App Engine apps, you can create httpClient by calling
+// urlfetch.Client function; other apps can pass http.DefaultClient.
 func New(apiKey string, secret string, httpClient *http.Client) *Client {
   return &Client{
        apiKey: apiKey,
@@ -55,28 +58,58 @@ func New(apiKey string, secret string, httpClient *http.Client) *Client {
 //     ReadPerm
 //     WritePerm
 //     DeletePerm
-func (c *Client) AuthURL(perms string) *http.URL {
+func (c *Client) AuthURL(perms string) string {
   args := map[string]string{}
   args["perms"] = perms
   return sign(c.secret, c.apiKey, "auth", args)
 }
 
 // Returns the signed URL for Flickr's flickr.auth.getToken request.
-func getTokenURL(c *Client, frob string) *http.URL {
-  return c.url("flickr.auth.getToken", map[string]string{ "frob": frob })
+func getTokenURL(c *Client, frob string) string {
+  return url(c, "flickr.auth.getToken", map[string]string{ "frob": frob })
 }
 
 // Exchanges a temporary frob for a token that's valid forever.
 // See http://www.flickr.com/services/api/auth.howto.web.html.
 func (c *Client) GetToken(frob string) (string, os.Error) {
   r := struct {
-    Stat string
     Auth struct {
       Token struct { Content string "_content" }
     }
   }{}
-  if err := requestFlickr(c, getTokenURL(c, frob), &r); err != nil {
+  if err := flickrGet(c, getTokenURL(c, frob), &r); err != nil {
     return "", err
   }
   return r.Auth.Token.Content, nil
+}
+
+type SearchResponse struct {
+  Page int
+  Pages int
+  PerPage int
+  Total string
+  Photos []Photo "photo"
+}
+
+type Photo struct {
+  Id string
+  Owner string
+  Secret string
+  Server string
+  Farm int
+  Title string
+}
+
+func searchURL(c *Client, args map[string]string) string {
+  return url(c, "flickr.photos.search", args)
+}
+
+func (c *Client) Search(args map[string]string) (*SearchResponse, os.Error) {
+  r := struct {
+    Photos SearchResponse
+  }{}
+  if err := flickrGet(c, searchURL(c, args), &r); err != nil {
+    return nil, err
+  }
+  return &r.Photos, nil
 }
