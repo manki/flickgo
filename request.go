@@ -10,6 +10,7 @@ import (
   "io"
   "log"
   "multipart_writer"
+  "net/textproto"
   "os"
   "path/filepath"
   "regexp"
@@ -158,6 +159,13 @@ func flickrPost(c *Client, req *http.Request, resp interface{}) os.Error {
   return parseXML(in, resp)
 }
 
+// Copied from mime/multipart/writer.go.
+func escapeQuotes(s string) string {
+  s = strings.Replace(s, "\\", "\\\\", -1)
+  s = strings.Replace(s, "\"", "\\\"", -1)
+  return s
+}
+
 var contentType = map[string]string{
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
@@ -174,8 +182,12 @@ func multipartWriter(w io.Writer, filename string, photo []byte,
       return nil, wrapErr(fmt.Sprintf("field write failed [%v=%v]", k, v), err)
     }
   }
-  w, cErr := mpw.CreateFormFile("photo", filename,
-                                contentType[strings.ToLower(filepath.Ext(filename))])
+  h := make(textproto.MIMEHeader)
+  h.Set("Content-Disposition",
+        fmt.Sprintf(`form-data; name="photo"; filename="%s"`,
+                    escapeQuotes(filename)))
+  h.Set("Content-Type", contentType[strings.ToLower(filepath.Ext(filename))])
+  w, cErr := mpw.CreatePart(h)
   if cErr != nil {
     return nil, wrapErr("form file creation failed [" + filename + "]", cErr)
   }
@@ -196,7 +208,7 @@ func uploadRequest(c *Client, filename string, photo []byte,
   a["async"] = "1"
   a["api_sig"] = sign(c.secret, a)
 
-  buf := bytes.NewBuffer(make([]byte, len(photo) * 2))
+  buf := bytes.NewBuffer(make([]byte, 0, len(photo) * 2))
   mpw, wErr := multipartWriter(buf, filename, photo, a)
   if wErr != nil {
     return nil, wrapErr("writer creation failed", wErr)
