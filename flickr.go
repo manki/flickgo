@@ -1,5 +1,3 @@
-// Copyright 2011 Muthukannan T <manki@manki.in>. All Rights Reserved.
-
 // Flickr library for Go.
 // Created to be used primarily in Google App Engine.
 package flickgo
@@ -8,6 +6,7 @@ import (
   "fmt"
   "http"
   "os"
+  "strings"
 )
 
 // Flickr API permission levels.  See
@@ -60,7 +59,7 @@ func (c *Client) AuthURL(perms string) string {
 
 // Returns the signed URL for Flickr's flickr.auth.getToken request.
 func getTokenURL(c *Client, frob string) string {
-  return url(c, "flickr.auth.getToken", map[string]string{ "frob": frob })
+  return url(c, "flickr.auth.getToken", map[string]string{ "frob": frob }, true)
 }
 
 type flickrError struct {
@@ -90,7 +89,7 @@ func (c *Client) GetToken(frob string) (string, os.Error) {
 
 // Returns URL for Flickr photo search.
 func searchURL(c *Client, args map[string]string) string {
-  return url(c, "flickr.photos.search", args)
+  return url(c, "flickr.photos.search", args, true)
 }
 
 // Searches for photos.  args contains search parameters as described in
@@ -133,4 +132,39 @@ func (c *Client) Upload(name string, photo []byte,
                                        resp.Err.Code, resp.Err.Msg))
   }
   return resp.TicketID, nil
+}
+
+// Returns request URL for flickr.photos.upload.checkTickets request.
+func checkTicketsURL(c *Client, tickets []string) string {
+  args := make(map[string]string)
+  args["tickets"] = strings.Join(tickets, ",")
+  return url(c, "flickr.photos.upload.checkTickets", args, false)
+}
+
+// Asynchronous photo upload status response.
+type TicketStatus struct {
+  Id string "attr"
+  Complete string "attr"
+  Invalid string "attr"
+  PhotoId string "attr"
+}
+
+// Checks the status of async upload tickets (returned by Upload method, for
+// example).  Interface for
+// http://www.flickr.com/services/api/flickr.photos.upload.checkTickets.html
+// API method.
+func (c *Client) CheckTickets(tickets []string) (statuses []TicketStatus, err os.Error) {
+  r := struct {
+    Stat string "attr"
+    Err flickrError
+    Tickets []TicketStatus "uploader>ticket"
+  }{}
+  if err := flickrGet(c, checkTicketsURL(c, tickets), &r); err != nil {
+    return nil, err
+  }
+  if r.Stat != "ok" {
+    return nil, os.NewError(fmt.Sprintf("Flickr error code %s: %s",
+                                        r.Err.Code, r.Err.Msg))
+  }
+  return r.Tickets, nil
 }

@@ -1,5 +1,3 @@
-// Copyright 2011 Muthukannan T <manki@manki.in>. All Rights Reserved.
-
 package flickgo
 
 import (
@@ -331,10 +329,10 @@ func TestSearch(t *testing.T) {
   xmlStr := `<?xml version="1.0" encoding="utf-8"?>
     <rsp stat="ok">
       <photos page="1" pages="3" perpage="2" total="5">
-      <photo id="1234" owner="22@N01" secret="63562" server="3" farm="1"
-             title="kitten" ispublic="0" isfriend="1" isfamily="1"/>
-      <photo id="5678" owner="22@N01" secret="36221" server="32" farm="4"
-             title="puppies" ispublic="0" isfriend="0" isfamily="0"/>
+        <photo id="1234" owner="22@N01" secret="63562" server="3" farm="1"
+               title="kitten" ispublic="0" isfriend="1" isfamily="1"/>
+        <photo id="5678" owner="22@N01" secret="36221" server="32" farm="4"
+               title="puppies" ispublic="0" isfriend="0" isfamily="0"/>
       </photos>
     </rsp>`
   xmlBytes := bytes.NewBufferString(xmlStr).Bytes()
@@ -377,4 +375,56 @@ func TestURL(t *testing.T) {
   }
   assertEq(t, "url", "http://farmfx.static.flickr.com/server/id_secret_-.jpg",
            p.URL(SizeMedium500))
+}
+
+func TestCheckTicketsURL(t *testing.T) {
+  tickets := []string{
+      "12345",
+      "23232",
+      "65876",
+      }
+  c := New(apiKey, secret, nil)
+  authToken := "ase878723623"
+  c.AuthToken = authToken
+
+  u, uErr := http.ParseURL(checkTicketsURL(c, tickets))
+  assertOK(t, "parseURL", uErr)
+  a, err := http.ParseQuery(u.RawQuery)
+  assertOK(t, "parseQuery", err)
+  assertEq(t, "method", "flickr.photos.upload.checkTickets", a["method"][0])
+  assertEq(t, "tickets", "12345,23232,65876", a["tickets"][0])
+  assertEq(t, "auth_token", authToken, a["auth_token"][0])
+}
+
+func TestCheckTickets(t *testing.T) {
+  xmlStr := `<?xml version="1.0" encoding="utf-8"?>
+    <rsp stat="ok">
+      <uploader>
+        <ticket id="12345" complete="0"/>
+        <ticket id="56789" complete="1" photoid="232323"/>
+        <ticket id="333" invalid="1"/>
+      </uploader>
+    </rsp>`
+  xmlBytes := bytes.NewBufferString(xmlStr).Bytes()
+  body := fakeBody{data: xmlBytes}
+  currentBody = body
+  resp := http.Response{Body: body}
+  getFn := func(r *http.Request) (*http.Response, os.Error) {
+    return &resp, nil
+  }
+  c := New(apiKey, secret, newHTTPClient(getFn))
+  statuses, err := c.CheckTickets([]string{"12345", "56789", "333"})
+  assertOK(t, "checkTickets", err)
+  assertEq(t, "len(statues)", 3, len(statuses))
+
+  verify := func(status TicketStatus, idx int,
+                 id string, complete string, invalid string, photoid string) {
+    assertEq(t, fmt.Sprintf("%d.id", idx), id, status.Id)
+    assertEq(t, fmt.Sprintf("%d.complete", idx), complete, status.Complete)
+    assertEq(t, fmt.Sprintf("%d.invalid", idx), invalid, status.Invalid)
+    assertEq(t, fmt.Sprintf("%d.photoid", idx), photoid, status.PhotoId)
+  }
+  verify(statuses[0], 0, "12345", "0", "", "")
+  verify(statuses[1], 1, "56789", "1", "", "232323")
+  verify(statuses[2], 2, "333", "", "1", "")
 }

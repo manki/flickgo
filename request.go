@@ -1,5 +1,3 @@
-// Copyright 2011 Muthukannan T <manki@manki.in>. All Rights Reserved.
-
 package flickgo
 
 import (
@@ -85,13 +83,20 @@ func signedURL(secret string, apiKey string, path string, args map[string]string
 // Returns a URL for invoking a Flickr method with the specified arguments.  If
 // c has its AuthToken field set, the auth token is added to the URL.  Returned
 // URL is always signed with c.secret.
-func url(c *Client, method string, args map[string]string) string {
+func url(c *Client, method string, args map[string]string, authenticated bool) string {
   a := clone(args)
   a["method"] = method
   if len(c.AuthToken) > 0 {
     a["auth_token"] = c.AuthToken
   }
-  return signedURL(c.secret, c.apiKey, "rest", a)
+  var u string
+  if (authenticated) {
+    u = signedURL(c.secret, c.apiKey, "rest", a)
+  } else {
+    qry := http.EncodeQuery(multimap(a))
+    u = fmt.Sprintf("%s/rest/?%s", service, qry)
+  }
+  return u
 }
 
 // Regular expressions for identifying non-JSON part of the JSONP response
@@ -134,7 +139,7 @@ func fetch(c *Client, u string) (io.ReadCloser, os.Error) {
   return processReponse(c, r)
 }
 
-// Sends a Flickr request, parses the response JSON and populates values in
+// Sends a Flickr request, parses the response XML, and populates values in
 // resp.  url represents the complete Flickr request with the arguments signed
 // with the API secret.
 func flickrGet(c *Client, url string, resp interface{}) os.Error {
