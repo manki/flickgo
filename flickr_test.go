@@ -59,15 +59,14 @@ func TestSignedURL(t *testing.T) {
       "xyz": "xyz",
       "123": "98765",
       }
-  argsMm := map[string][]string{
-      "abc": []string{"abc def"},
-      "xyz": []string{"xyz"},
-      "123": []string{"98765"},
-      "api_key": []string{"apap983 key"},
-      "api_sig": []string{sig},
-      }
+  qry := make(http.Values)
+  qry.Add("abc", "abc def")
+  qry.Add("xyz", "xyz")
+  qry.Add("123", "98765")
+  qry.Add("api_key", "apap983 key")
+  qry.Add("api_sig", sig)
 
-  expected := "http://www.flickr.com/services/srv/?" + http.EncodeQuery(argsMm)
+  expected := "http://www.flickr.com/services/srv/?" + qry.Encode()
   actual := signedURL(secret, "apap983 key", "srv", args)
   assertEq(t, "url", expected, actual)
 }

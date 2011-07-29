@@ -7,7 +7,7 @@ import (
   "http"
   "io"
   "log"
-  "multipart_writer"
+  "mime/multipart"
   "net/textproto"
   "os"
   "path/filepath"
@@ -33,14 +33,13 @@ func keys(m map[string]string) sort.StringArray {
   return ks
 }
 
-// Converts a map[string]string to a map[string][]string by boxing each value
-// into a single-element array.
-func multimap(m map[string]string) map[string][]string {
-  r := make(map[string][]string)
+// Creates a new http.Values and copies values from m into it.
+func queryValues(m map[string]string) *http.Values {
+  r := make(http.Values)
   for k, v := range m {
-    r[k] = []string{v}
+    r.Add(k, v)
   }
-  return r
+  return &r
 }
 
 // Clones a string -> string map.
@@ -76,7 +75,7 @@ func signedURL(secret string, apiKey string, path string, args map[string]string
   a := clone(args)
   a["api_key"] = apiKey
   a["api_sig"] = sign(secret, a)
-  qry := http.EncodeQuery(multimap(a))
+  qry := queryValues(a).Encode()
   return fmt.Sprintf("%s/%s/?%s", service, path, qry)
 }
 
@@ -93,7 +92,7 @@ func url(c *Client, method string, args map[string]string, authenticated bool) s
   if (authenticated) {
     u = signedURL(c.secret, c.apiKey, "rest", a)
   } else {
-    qry := http.EncodeQuery(multimap(a))
+    qry := queryValues(a).Encode()
     u = fmt.Sprintf("%s/rest/?%s", service, qry)
   }
   return u
@@ -132,7 +131,7 @@ func parseXML(in io.Reader, resp interface{}) os.Error {
 
 // Sends a GET request to u and returns the response JSON.
 func fetch(c *Client, u string) (io.ReadCloser, os.Error) {
-  r, _, getErr := c.httpClient.Get(u)
+  r, getErr := c.httpClient.Get(u)
   if getErr != nil {
     return nil, wrapErr("GET failed", getErr)
   }
@@ -180,8 +179,8 @@ var contentType = map[string]string{
 }
 
 func multipartWriter(w io.Writer, filename string, photo []byte,
-                     args map[string]string) (*multipart_writer.Writer, os.Error) {
-  mpw := multipart_writer.NewWriter(w)
+                     args map[string]string) (*multipart.Writer, os.Error) {
+  mpw := multipart.NewWriter(w)
   for k, v := range args {
     if err := mpw.WriteField(k, v); err != nil {
       return nil, wrapErr(fmt.Sprintf("field write failed [%v=%v]", k, v), err)
