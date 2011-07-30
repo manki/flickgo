@@ -17,10 +17,21 @@ const (
   DeletePerm = "delete"
 )
 
+// Debug logger.
+type Debugfer interface {
+  // Debugf formats its arguments according to the format, analogous to fmt.Printf,
+  // and records the text as a log message at Debug level.
+  Debugf(format string, args ...interface{})
+}
+
 // Flickr client.
 type Client struct {
   // Auth token for acting on behalf of a user.
   AuthToken string
+
+  // Logger to use.
+  // Hint: App engine's Context implements this interface.
+  Logger Debugfer
 
   // API key for your app.
   apiKey string
@@ -67,24 +78,28 @@ type flickrError struct {
   Msg string "attr"
 }
 
+func (e *flickrError) Error() os.Error {
+  return fmt.Errorf("Flickr error code %s: %s", e.Code, e.Msg)
+}
+
 // Exchanges a temporary frob for a token that's valid forever.
 // See http://www.flickr.com/services/api/auth.howto.web.html.
-func (c *Client) GetToken(frob string) (string, os.Error) {
+func (c *Client) GetToken(frob string) (string, *User, os.Error) {
   r := struct {
     Stat string "attr"
     Err flickrError
     Auth struct {
       Token string
+      User User
     }
   }{}
   if err := flickrGet(c, getTokenURL(c, frob), &r); err != nil {
-    return "", err
+    return "", nil, err
   }
   if r.Stat != "ok" {
-    return "", os.NewError(fmt.Sprintf("Flickr error code %s: %s",
-                                       r.Err.Code, r.Err.Msg))
+    return "", nil, r.Err.Error()
   }
-  return r.Auth.Token, nil
+  return r.Auth.Token, &r.Auth.User, nil
 }
 
 // Returns URL for Flickr photo search.
@@ -104,8 +119,7 @@ func (c *Client) Search(args map[string]string) (*SearchResponse, os.Error) {
     return nil, err
   }
   if r.Stat != "ok" {
-    return nil, os.NewError(fmt.Sprintf("Flickr error code %s: %s",
-                                        r.Err.Code, r.Err.Msg))
+    return nil, r.Err.Error()
   }
   return &r.Photos, nil
 }
@@ -128,13 +142,12 @@ func (c *Client) Upload(name string, photo []byte,
     return "", wrapErr("uploading failed", err)
   }
   if resp.Stat != "ok" {
-    return "", os.NewError(fmt.Sprintf("Flickr error code %s: %s",
-                                       resp.Err.Code, resp.Err.Msg))
+    return "", resp.Err.Error()
   }
   return resp.TicketID, nil
 }
 
-// Returns request URL for flickr.photos.upload.checkTickets request.
+// Returns URL for flickr.photos.upload.checkTickets request.
 func checkTicketsURL(c *Client, tickets []string) string {
   args := make(map[string]string)
   args["tickets"] = strings.Join(tickets, ",")
@@ -143,7 +156,7 @@ func checkTicketsURL(c *Client, tickets []string) string {
 
 // Asynchronous photo upload status response.
 type TicketStatus struct {
-  Id string "attr"
+  ID string "attr"
   Complete string "attr"
   Invalid string "attr"
   PhotoId string "attr"
@@ -163,8 +176,30 @@ func (c *Client) CheckTickets(tickets []string) (statuses []TicketStatus, err os
     return nil, err
   }
   if r.Stat != "ok" {
-    return nil, os.NewError(fmt.Sprintf("Flickr error code %s: %s",
-                                        r.Err.Code, r.Err.Msg))
+    return nil, r.Err.Error()
   }
   return r.Tickets, nil
+}
+
+// Returns URL for flickr.photosets.getList request.
+func getPhotoSetsURL(c *Client, userID string) string {
+  args := make(map[string]string)
+  args["user_id"] = userID
+  return url(c, "flickr.photosets.getList", args, false)
+}
+
+// Returns the list of photo sets of the specified user.
+func (c *Client) GetSets(userID string) ([]PhotoSet, os.Error) {
+  r := struct {
+    Stat string "attr"
+    Err flickrError
+    Sets []PhotoSet "photosets>photoset"
+  }{}
+  if err := flickrGet(c, getPhotoSetsURL(c, userID), &r); err != nil {
+    return nil, err
+  }
+  if r.Stat != "ok" {
+    return nil, r.Err.Error()
+  }
+  return r.Sets, nil
 }

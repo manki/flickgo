@@ -239,7 +239,7 @@ func TestGetTokenAPIFailure(t *testing.T) {
     return &resp, nil
   }
   c := New(apiKey, secret, newHTTPClient(getFn))
-  _, err := c.GetToken("878243")
+  _, _, err := c.GetToken("878243")
   assert(t, "err", err != nil)
   assert(t, "message: " + err.String(),
          strings.Contains(err.String(), "code 97: Missing signature"))
@@ -262,9 +262,11 @@ func TestGetToken(t *testing.T) {
     return &resp, nil
   }
   c := New(apiKey, secret, newHTTPClient(getFn))
-  tok, err := c.GetToken("878243")
+  tok, user, err := c.GetToken("878243")
   assertOK(t, "GetToken", err)
   assertEq(t, "token", "121-84669832774", tok)
+  assertEq(t, "username", "testuser", user.UserName)
+  assertEq(t, "nsid", "7687633@N01", user.NSID)
 }
 
 func TestUploadFails(t *testing.T) {
@@ -331,7 +333,7 @@ func TestSearch(t *testing.T) {
         <photo id="1234" owner="22@N01" secret="63562" server="3" farm="1"
                title="kitten" ispublic="0" isfriend="1" isfamily="1"/>
         <photo id="5678" owner="22@N01" secret="36221" server="32" farm="4"
-               title="puppies" ispublic="0" isfriend="0" isfamily="0"/>
+               title="puppies" ispublic="1" isfriend="0" isfamily="0"/>
       </photos>
     </rsp>`
   xmlBytes := bytes.NewBufferString(xmlStr).Bytes()
@@ -351,21 +353,22 @@ func TestSearch(t *testing.T) {
   assertEq(t, "len photos", 2, len(r.Photos))
 
   verify := func(p Photo, idx int,
-                 id, owner, secret, server, farm, title string) {
-    assertEq(t, fmt.Sprintf("%d.id", idx), id, p.Id)
+                 id, owner, secret, server, farm, title, isPublic string) {
+    assertEq(t, fmt.Sprintf("%d.id", idx), id, p.ID)
     assertEq(t, fmt.Sprintf("%d.owner", idx), owner, p.Owner)
     assertEq(t, fmt.Sprintf("%d.secret", idx), secret, p.Secret)
     assertEq(t, fmt.Sprintf("%d.server", idx), server, p.Server)
     assertEq(t, fmt.Sprintf("%d.farm", idx), farm, p.Farm)
     assertEq(t, fmt.Sprintf("%d.title", idx), title, p.Title)
+    assertEq(t, fmt.Sprintf("%d.ispublic", idx), isPublic, p.IsPublic)
   }
-  verify(r.Photos[0], 0, "1234", "22@N01", "63562", "3", "1", "kitten")
-  verify(r.Photos[1], 1, "5678", "22@N01", "36221", "32", "4", "puppies")
+  verify(r.Photos[0], 0, "1234", "22@N01", "63562", "3", "1", "kitten", "0")
+  verify(r.Photos[1], 1, "5678", "22@N01", "36221", "32", "4", "puppies", "1")
 }
 
 func TestURL(t *testing.T) {
   p := Photo{
-    Id: "id",
+    ID: "id",
     Owner: "owner",
     Secret: "secret",
     Server: "server",
@@ -392,7 +395,6 @@ func TestCheckTicketsURL(t *testing.T) {
   assertOK(t, "parseQuery", err)
   assertEq(t, "method", "flickr.photos.upload.checkTickets", a["method"][0])
   assertEq(t, "tickets", "12345,23232,65876", a["tickets"][0])
-  assertEq(t, "auth_token", authToken, a["auth_token"][0])
 }
 
 func TestCheckTickets(t *testing.T) {
@@ -418,7 +420,7 @@ func TestCheckTickets(t *testing.T) {
 
   verify := func(status TicketStatus, idx int,
                  id string, complete string, invalid string, photoid string) {
-    assertEq(t, fmt.Sprintf("%d.id", idx), id, status.Id)
+    assertEq(t, fmt.Sprintf("%d.id", idx), id, status.ID)
     assertEq(t, fmt.Sprintf("%d.complete", idx), complete, status.Complete)
     assertEq(t, fmt.Sprintf("%d.invalid", idx), invalid, status.Invalid)
     assertEq(t, fmt.Sprintf("%d.photoid", idx), photoid, status.PhotoId)
@@ -426,4 +428,54 @@ func TestCheckTickets(t *testing.T) {
   verify(statuses[0], 0, "12345", "0", "", "")
   verify(statuses[1], 1, "56789", "1", "", "232323")
   verify(statuses[2], 2, "333", "", "1", "")
+}
+
+func TestGetPhotoSetsURL(t *testing.T) {
+  userID := "7687633@N01"
+  c := New(apiKey, secret, nil)
+  authToken := "ase878723623"
+  c.AuthToken = authToken
+
+  u, uErr := http.ParseURL(getPhotoSetsURL(c, userID))
+  assertOK(t, "parseURL", uErr)
+  a, err := http.ParseQuery(u.RawQuery)
+  assertOK(t, "parseQuery", err)
+  assertEq(t, "method", "flickr.photosets.getList", a["method"][0])
+  assertEq(t, "user_id", userID, a["user_id"][0])
+}
+
+func TestGetSets(t *testing.T) {
+  xmlStr := `<?xml version="1.0" encoding="utf-8"?>
+    <rsp stat="ok">
+      <photosets cancreate="1">
+        <photoset id="12345" photos="35" videos="0">
+          <title>Flowers</title>
+          <description>All my flower pictures</description>
+        </photoset>
+        <photoset id="65656" photos="112" videos="32">
+          <title>Sophie</title>
+          <description>Photos and videos of Sophie</description>
+        </photoset>
+      </photosets>
+    </rsp>`
+  xmlBytes := bytes.NewBufferString(xmlStr).Bytes()
+  body := fakeBody{data: xmlBytes}
+  currentBody = body
+  resp := http.Response{Body: body}
+  getFn := func(r *http.Request) (*http.Response, os.Error) {
+    return &resp, nil
+  }
+  c := New(apiKey, secret, newHTTPClient(getFn))
+  sets, err := c.GetSets("me")
+  assertOK(t, "getPhotoSets", err)
+  assertEq(t, "len(sets)", 2, len(sets))
+
+  verify := func(set PhotoSet, idx int,
+                 id, title, description string) {
+    assertEq(t, fmt.Sprintf("%d.id", idx), id, set.ID)
+    assertEq(t, fmt.Sprintf("%d.title", idx), title, set.Title)
+    assertEq(t, fmt.Sprintf("%d.description", idx), description, set.Description)
+  }
+  verify(sets[0], 0, "12345", "Flowers", "All my flower pictures")
+  verify(sets[1], 1, "65656", "Sophie", "Photos and videos of Sophie")
 }

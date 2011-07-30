@@ -6,7 +6,6 @@ import (
   "fmt"
   "http"
   "io"
-  "log"
   "mime/multipart"
   "net/textproto"
   "os"
@@ -85,11 +84,10 @@ func signedURL(secret string, apiKey string, path string, args map[string]string
 func url(c *Client, method string, args map[string]string, authenticated bool) string {
   a := clone(args)
   a["method"] = method
-  if len(c.AuthToken) > 0 {
-    a["auth_token"] = c.AuthToken
-  }
+  a["api_key"] = c.apiKey
   var u string
   if (authenticated) {
+    a["auth_token"] = c.AuthToken
     u = signedURL(c.secret, c.apiKey, "rest", a)
   } else {
     qry := queryValues(a).Encode()
@@ -119,10 +117,12 @@ func processReponse(c *Client, r *http.Response) (io.ReadCloser, os.Error) {
   return r.Body, nil
 }
 
-func parseXML(in io.Reader, resp interface{}) os.Error {
+func parseXML(in io.Reader, resp interface{}, logger Debugfer) os.Error {
   buf := bytes.NewBuffer(nil)
   io.Copy(buf, in)
-  log.Printf("Parsing XML %s", string(buf.Bytes()))
+  if logger != nil {
+    logger.Debugf("Parsing XML %s", string(buf.Bytes()))
+  }
   if err := xml.Unmarshal(buf, resp); err != nil {
     return wrapErr("XML parsing failed", err)
   }
@@ -142,15 +142,21 @@ func fetch(c *Client, u string) (io.ReadCloser, os.Error) {
 // resp.  url represents the complete Flickr request with the arguments signed
 // with the API secret.
 func flickrGet(c *Client, url string, resp interface{}) os.Error {
+  if c.Logger != nil {
+    c.Logger.Debugf("GET %v\n", url);
+  }
   in, err := fetch(c, url)
   if err != nil {
     return err
   }
   defer in.Close()
-  return parseXML(in, resp)
+  return parseXML(in, resp, c.Logger)
 }
 
 func flickrPost(c *Client, req *http.Request, resp interface{}) os.Error {
+  if c.Logger != nil {
+    c.Logger.Debugf("POST %v\n", req.RawURL);
+  }
   r, rErr := c.httpClient.Do(req)
   if rErr != nil {
     return rErr
@@ -160,7 +166,7 @@ func flickrPost(c *Client, req *http.Request, resp interface{}) os.Error {
     return wrapErr("error response", pErr)
   }
   defer in.Close()
-  return parseXML(in, resp)
+  return parseXML(in, resp, c.Logger)
 }
 
 // Copied from mime/multipart/writer.go.

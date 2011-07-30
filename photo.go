@@ -27,18 +27,31 @@ type SearchResponse struct {
   Photos []Photo "photo>"
 }
 
+// A Flickr user.
+type User struct {
+  UserName string "attr"
+  NSID string "attr"
+}
+
 // Represents a Flickr photo.
 type Photo struct {
-  Id string     "attr"
+  ID string     "attr"
   Owner string  "attr"
   Secret string "attr"
   Server string "attr"
   Farm string   "attr"
   Title string  "attr"
+  IsPublic string "attr"
 }
 
 // Returns the URL to this photo in the specified size.
 func (p *Photo) URL(size string) string {
   return fmt.Sprintf("http://farm%s.static.flickr.com/%s/%s_%s_%s.jpg",
-                     p.Farm, p.Server, p.Id, p.Secret, size)
+                     p.Farm, p.Server, p.ID, p.Secret, size)
+}
+
+type PhotoSet struct {
+  ID string "attr"
+  Title string
+  Description string
 }
