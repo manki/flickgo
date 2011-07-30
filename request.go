@@ -61,7 +61,7 @@ func sign(secret string, args map[string]string) string {
   m := md5.New()
   m.Write([]byte(secret))
   for _, k := range ks {
-    m.Write([]byte(k + http.URLEscape(args[k])))
+    m.Write([]byte(k + args[k]))
   }
   return fmt.Sprintf("%x", m.Sum())
 }

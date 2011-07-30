@@ -185,7 +185,7 @@ func (c *Client) CheckTickets(tickets []string) (statuses []TicketStatus, err os
 func getPhotoSetsURL(c *Client, userID string) string {
   args := make(map[string]string)
   args["user_id"] = userID
-  return url(c, "flickr.photosets.getList", args, false)
+  return url(c, "flickr.photosets.getList", args, true)
 }
 
 // Returns the list of photo sets of the specified user.
