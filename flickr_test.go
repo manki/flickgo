@@ -423,7 +423,7 @@ func TestCheckTickets(t *testing.T) {
     assertEq(t, fmt.Sprintf("%d.id", idx), id, status.ID)
     assertEq(t, fmt.Sprintf("%d.complete", idx), complete, status.Complete)
     assertEq(t, fmt.Sprintf("%d.invalid", idx), invalid, status.Invalid)
-    assertEq(t, fmt.Sprintf("%d.photoid", idx), photoid, status.PhotoId)
+    assertEq(t, fmt.Sprintf("%d.photoid", idx), photoid, status.PhotoID)
   }
   verify(statuses[0], 0, "12345", "0", "", "")
   verify(statuses[1], 1, "56789", "1", "", "232323")

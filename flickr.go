@@ -127,7 +127,7 @@ func (c *Client) Search(args map[string]string) (*SearchResponse, os.Error) {
 // Initiates an asynchronous photo upload and returns the ticket ID.  See
 // http://www.flickr.com/services/api/upload.async.html for details.
 func (c *Client) Upload(name string, photo []byte,
-                        args map[string]string) (ticketId string, err os.Error) {
+                        args map[string]string) (ticketID string, err os.Error) {
   req, uErr := uploadRequest(c, name, photo, args)
   if (uErr != nil) {
     return "", wrapErr("request creation failed", uErr)
@@ -159,7 +159,7 @@ type TicketStatus struct {
   ID string "attr"
   Complete string "attr"
   Invalid string "attr"
-  PhotoId string "attr"
+  PhotoID string "attr"
 }
 
 // Checks the status of async upload tickets (returned by Upload method, for
@@ -202,4 +202,26 @@ func (c *Client) GetSets(userID string) ([]PhotoSet, os.Error) {
     return nil, r.Err.Error()
   }
   return r.Sets, nil
+}
+
+func addToSetURL(c *Client, photoID, setID string) string {
+  args := make(map[string]string)
+  args["photo_id"] = photoID
+  args["photoset_id"] = setID
+  return url(c, "flickr.photosets.addPhoto", args, true)
+}
+
+// Adds a photo to a photoset.
+func (c *Client) AddPhotoToSet(photoID, setID string) os.Error {
+  r := struct {
+    Stat string "attr"
+    Err flickrError
+  }{}
+  if err := flickrGet(c, addToSetURL(c, photoID, setID), &r); err != nil {
+    return err
+  }
+  if r.Stat != "ok" {
+    return r.Err.Error()
+  }
+  return nil
 }

@@ -46,6 +46,10 @@ type Photo struct {
 
 // Returns the URL to this photo in the specified size.
 func (p *Photo) URL(size string) string {
+  if size == "-" {
+    return fmt.Sprintf("http://farm%s.static.flickr.com/%s/%s_%s.jpg",
+                       p.Farm, p.Server, p.ID, p.Secret)
+  }
   return fmt.Sprintf("http://farm%s.static.flickr.com/%s/%s_%s_%s.jpg",
                      p.Farm, p.Server, p.ID, p.Secret, size)
 }
