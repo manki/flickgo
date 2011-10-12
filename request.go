@@ -26,7 +26,7 @@ const (
 func keys(m map[string]string) sort.StringSlice {
 	ks := make([]string, len(m))
 	i := 0
-	for k, _ := range m {
+	for k := range m {
 		ks[i] = k
 		i++
 	}
