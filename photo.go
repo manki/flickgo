@@ -20,28 +20,28 @@ const (
 
 // Response for photo search requests.
 type SearchResponse struct {
-  Page string    "attr"
-  Pages string   "attr"
-  PerPage string "attr"
-  Total string   "attr"
-  Photos []Photo "photo>"
+  Page string    `xml:"attr"`
+  Pages string   `xml:"attr"`
+  PerPage string `xml:"attr"`
+  Total string   `xml:"attr"`
+  Photos []Photo `xml:"photo>"`
 }
 
 // A Flickr user.
 type User struct {
-  UserName string "attr"
-  NSID string "attr"
+  UserName string `xml:"attr"`
+  NSID string `xml:"attr"`
 }
 
 // Represents a Flickr photo.
 type Photo struct {
-  ID string     "attr"
-  Owner string  "attr"
-  Secret string "attr"
-  Server string "attr"
-  Farm string   "attr"
-  Title string  "attr"
-  IsPublic string "attr"
+  ID string     `xml:"attr"`
+  Owner string  `xml:"attr"`
+  Secret string `xml:"attr"`
+  Server string `xml:"attr"`
+  Farm string   `xml:"attr"`
+  Title string  `xml:"attr"`
+  IsPublic string `xml:"attr"`
 }
 
 // Returns the URL to this photo in the specified size.
@@ -55,7 +55,7 @@ func (p *Photo) URL(size string) string {
 }
 
 type PhotoSet struct {
-  ID string "attr"
+  ID string `xml:"attr"`
   Title string
   Description string
 }

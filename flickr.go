@@ -70,12 +70,12 @@ func (c *Client) AuthURL(perms string) string {
 
 // Returns the signed URL for Flickr's flickr.auth.getToken request.
 func getTokenURL(c *Client, frob string) string {
-  return url(c, "flickr.auth.getToken", map[string]string{ "frob": frob }, true)
+  return makeURL(c, "flickr.auth.getToken", map[string]string{ "frob": frob }, true)
 }
 
 type flickrError struct {
-  Code string "attr"
-  Msg string "attr"
+  Code string `xml:"attr"`
+  Msg string `xml:"attr"`
 }
 
 func (e *flickrError) Error() os.Error {
@@ -86,7 +86,7 @@ func (e *flickrError) Error() os.Error {
 // See http://www.flickr.com/services/api/auth.howto.web.html.
 func (c *Client) GetToken(frob string) (string, *User, os.Error) {
   r := struct {
-    Stat string "attr"
+    Stat string `xml:"attr"`
     Err flickrError
     Auth struct {
       Token string
@@ -104,14 +104,14 @@ func (c *Client) GetToken(frob string) (string, *User, os.Error) {
 
 // Returns URL for Flickr photo search.
 func searchURL(c *Client, args map[string]string) string {
-  return url(c, "flickr.photos.search", args, true)
+  return makeURL(c, "flickr.photos.search", args, true)
 }
 
 // Searches for photos.  args contains search parameters as described in
 // http://www.flickr.com/services/api/flickr.photos.search.html.
 func (c *Client) Search(args map[string]string) (*SearchResponse, os.Error) {
   r := struct {
-    Stat string "attr"
+    Stat string `xml:"attr"`
     Err flickrError
     Photos SearchResponse
   }{}
@@ -134,7 +134,7 @@ func (c *Client) Upload(name string, photo []byte,
   }
 
   resp := struct {
-    Stat string "attr"
+    Stat string `xml:"attr"`
     Err flickrError
     TicketID string
   }{}
@@ -151,15 +151,15 @@ func (c *Client) Upload(name string, photo []byte,
 func checkTicketsURL(c *Client, tickets []string) string {
   args := make(map[string]string)
   args["tickets"] = strings.Join(tickets, ",")
-  return url(c, "flickr.photos.upload.checkTickets", args, false)
+  return makeURL(c, "flickr.photos.upload.checkTickets", args, false)
 }
 
 // Asynchronous photo upload status response.
 type TicketStatus struct {
-  ID string "attr"
-  Complete string "attr"
-  Invalid string "attr"
-  PhotoID string "attr"
+  ID string `xml:"attr"`
+  Complete string `xml:"attr"`
+  Invalid string `xml:"attr"`
+  PhotoID string `xml:"attr"`
 }
 
 // Checks the status of async upload tickets (returned by Upload method, for
@@ -168,9 +168,9 @@ type TicketStatus struct {
 // API method.
 func (c *Client) CheckTickets(tickets []string) (statuses []TicketStatus, err os.Error) {
   r := struct {
-    Stat string "attr"
+    Stat string `xml:"attr"`
     Err flickrError
-    Tickets []TicketStatus "uploader>ticket"
+		Tickets []TicketStatus `xml:"uploader>ticket"`
   }{}
   if err := flickrGet(c, checkTicketsURL(c, tickets), &r); err != nil {
     return nil, err
@@ -185,15 +185,15 @@ func (c *Client) CheckTickets(tickets []string) (statuses []TicketStatus, err os
 func getPhotoSetsURL(c *Client, userID string) string {
   args := make(map[string]string)
   args["user_id"] = userID
-  return url(c, "flickr.photosets.getList", args, true)
+  return makeURL(c, "flickr.photosets.getList", args, true)
 }
 
 // Returns the list of photo sets of the specified user.
 func (c *Client) GetSets(userID string) ([]PhotoSet, os.Error) {
   r := struct {
-    Stat string "attr"
+    Stat string `xml:"attr"`
     Err flickrError
-    Sets []PhotoSet "photosets>photoset"
+		Sets []PhotoSet `xml:"photosets>photoset"`
   }{}
   if err := flickrGet(c, getPhotoSetsURL(c, userID), &r); err != nil {
     return nil, err
@@ -208,13 +208,13 @@ func addToSetURL(c *Client, photoID, setID string) string {
   args := make(map[string]string)
   args["photo_id"] = photoID
   args["photoset_id"] = setID
-  return url(c, "flickr.photosets.addPhoto", args, true)
+  return makeURL(c, "flickr.photosets.addPhoto", args, true)
 }
 
 // Adds a photo to a photoset.
 func (c *Client) AddPhotoToSet(photoID, setID string) os.Error {
   r := struct {
-    Stat string "attr"
+    Stat string `xml:"attr"`
     Err flickrError
   }{}
   if err := flickrGet(c, addToSetURL(c, photoID, setID), &r); err != nil {
