@@ -42,6 +42,10 @@ type Photo struct {
 	Farm     string `xml:"attr"`
 	Title    string `xml:"attr"`
 	IsPublic string `xml:"attr"`
+	Width_T  string `xml:"attr"`
+	Height_T string `xml:"attr"`
+	// Photo's aspect ratio: width divided by height.
+	Ratio    float64
 }
 
 // Returns the URL to this photo in the specified size.

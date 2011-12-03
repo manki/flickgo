@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"http"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -104,7 +105,9 @@ func (c *Client) GetToken(frob string) (string, *User, os.Error) {
 
 // Returns URL for Flickr photo search.
 func searchURL(c *Client, args map[string]string) string {
-	return makeURL(c, "flickr.photos.search", args, true)
+	argsCopy := clone(args)
+	argsCopy["extras"] += ",url_t"
+	return makeURL(c, "flickr.photos.search", argsCopy, true)
 }
 
 // Searches for photos.  args contains search parameters as described in
@@ -120,6 +123,16 @@ func (c *Client) Search(args map[string]string) (*SearchResponse, os.Error) {
 	}
 	if r.Stat != "ok" {
 		return nil, r.Err.Error()
+	}
+
+	for i, ph := range r.Photos.Photos {
+		h, hErr := strconv.Atof64(ph.Height_T)
+		w, wErr := strconv.Atof64(ph.Width_T)
+		if hErr == nil && wErr == nil {
+			// ph is apparently just a copy of r.Photos.Photos[i], so we are
+			// updating the original.
+			r.Photos.Photos[i].Ratio = w / h
+		}
 	}
 	return &r.Photos, nil
 }

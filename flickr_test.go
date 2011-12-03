@@ -330,9 +330,11 @@ func TestSearch(t *testing.T) {
     <rsp stat="ok">
       <photos page="1" pages="3" perpage="2" total="5">
         <photo id="1234" owner="22@N01" secret="63562" server="3" farm="1"
-               title="kitten" ispublic="0" isfriend="1" isfamily="1"/>
+               title="kitten" ispublic="0" isfriend="1" isfamily="1"
+							 width_t="100" height_t="100"/>
         <photo id="5678" owner="22@N01" secret="36221" server="32" farm="4"
-               title="puppies" ispublic="1" isfriend="0" isfamily="0"/>
+               title="puppies" ispublic="1" isfriend="0" isfamily="0"
+							 width_t="120" height_t="100"/>
       </photos>
     </rsp>`
 	xmlBytes := bytes.NewBufferString(xmlStr).Bytes()
@@ -352,7 +354,8 @@ func TestSearch(t *testing.T) {
 	assertEq(t, "len photos", 2, len(r.Photos))
 
 	verify := func(p Photo, idx int,
-	id, owner, secret, server, farm, title, isPublic string) {
+	id, owner, secret, server, farm, title, isPublic, widthT, heightT string,
+  ratio float64) {
 		assertEq(t, fmt.Sprintf("%d.id", idx), id, p.ID)
 		assertEq(t, fmt.Sprintf("%d.owner", idx), owner, p.Owner)
 		assertEq(t, fmt.Sprintf("%d.secret", idx), secret, p.Secret)
@@ -360,9 +363,14 @@ func TestSearch(t *testing.T) {
 		assertEq(t, fmt.Sprintf("%d.farm", idx), farm, p.Farm)
 		assertEq(t, fmt.Sprintf("%d.title", idx), title, p.Title)
 		assertEq(t, fmt.Sprintf("%d.ispublic", idx), isPublic, p.IsPublic)
+		assertEq(t, fmt.Sprintf("%d.width_t", idx), widthT, p.Width_T)
+		assertEq(t, fmt.Sprintf("%d.height_t", idx), heightT, p.Height_T)
+		assertEq(t, fmt.Sprintf("%d.ratio", idx), ratio, p.Ratio)
 	}
-	verify(r.Photos[0], 0, "1234", "22@N01", "63562", "3", "1", "kitten", "0")
-	verify(r.Photos[1], 1, "5678", "22@N01", "36221", "32", "4", "puppies", "1")
+	verify(r.Photos[0], 0, "1234", "22@N01", "63562", "3", "1", "kitten", "0",
+	    "100", "100", 1.00)
+	verify(r.Photos[1], 1, "5678", "22@N01", "36221", "32", "4", "puppies", "1",
+	    "120", "100", float64(120) / 100)
 }
 
 func TestURL(t *testing.T) {
