@@ -45,7 +45,7 @@ type Photo struct {
 	Width_T  string `xml:"attr"`
 	Height_T string `xml:"attr"`
 	// Photo's aspect ratio: width divided by height.
-	Ratio    float64
+	Ratio float64
 }
 
 // Returns the URL to this photo in the specified size.
