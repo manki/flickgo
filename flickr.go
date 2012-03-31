@@ -4,8 +4,7 @@ package flickgo
 
 import (
 	"fmt"
-	"http"
-	"os"
+	"net/http"
 	"strconv"
 	"strings"
 )
@@ -75,30 +74,30 @@ func getTokenURL(c *Client, frob string) string {
 }
 
 type flickrError struct {
-	Code string `xml:"attr"`
-	Msg  string `xml:"attr"`
+	Code string `xml:"code,attr"`
+	Msg  string `xml:"msg,attr"`
 }
 
-func (e *flickrError) Error() os.Error {
+func (e *flickrError) Err() error {
 	return fmt.Errorf("Flickr error code %s: %s", e.Code, e.Msg)
 }
 
 // Exchanges a temporary frob for a token that's valid forever.
 // See http://www.flickr.com/services/api/auth.howto.web.html.
-func (c *Client) GetToken(frob string) (string, *User, os.Error) {
+func (c *Client) GetToken(frob string) (string, *User, error) {
 	r := struct {
-		Stat string `xml:"attr"`
-		Err  flickrError
+		Stat string `xml:"stat,attr"`
+		Err  flickrError `xml:"err"`
 		Auth struct {
-			Token string
-			User  User
-		}
+			Token string `xml:"token"`
+			User  User `xml:"user"`
+		} `xml:"auth"`
 	}{}
 	if err := flickrGet(c, getTokenURL(c, frob), &r); err != nil {
 		return "", nil, err
 	}
 	if r.Stat != "ok" {
-		return "", nil, r.Err.Error()
+		return "", nil, r.Err.Err()
 	}
 	return r.Auth.Token, &r.Auth.User, nil
 }
@@ -112,22 +111,22 @@ func searchURL(c *Client, args map[string]string) string {
 
 // Searches for photos.  args contains search parameters as described in
 // http://www.flickr.com/services/api/flickr.photos.search.html.
-func (c *Client) Search(args map[string]string) (*SearchResponse, os.Error) {
+func (c *Client) Search(args map[string]string) (*SearchResponse, error) {
 	r := struct {
-		Stat   string `xml:"attr"`
-		Err    flickrError
-		Photos SearchResponse
+		Stat   string `xml:"stat,attr"`
+		Err    flickrError `xml:"err"`
+		Photos SearchResponse `xml:"photos"`
 	}{}
 	if err := flickrGet(c, searchURL(c, args), &r); err != nil {
 		return nil, err
 	}
 	if r.Stat != "ok" {
-		return nil, r.Err.Error()
+		return nil, r.Err.Err()
 	}
 
 	for i, ph := range r.Photos.Photos {
-		h, hErr := strconv.Atof64(ph.Height_T)
-		w, wErr := strconv.Atof64(ph.Width_T)
+		h, hErr := strconv.ParseFloat(ph.Height_T, 64)
+		w, wErr := strconv.ParseFloat(ph.Width_T, 64)
 		if hErr == nil && wErr == nil {
 			// ph is apparently just a copy of r.Photos.Photos[i], so we are
 			// updating the original.
@@ -140,22 +139,22 @@ func (c *Client) Search(args map[string]string) (*SearchResponse, os.Error) {
 // Initiates an asynchronous photo upload and returns the ticket ID.  See
 // http://www.flickr.com/services/api/upload.async.html for details.
 func (c *Client) Upload(name string, photo []byte,
-args map[string]string) (ticketID string, err os.Error) {
+	args map[string]string) (ticketID string, err error) {
 	req, uErr := uploadRequest(c, name, photo, args)
 	if uErr != nil {
 		return "", wrapErr("request creation failed", uErr)
 	}
 
 	resp := struct {
-		Stat     string `xml:"attr"`
-		Err      flickrError
-		TicketID string
+		Stat     string `xml:"stat,attr"`
+		Err    flickrError `xml:"err"`
+		TicketID string `xml:"ticketid"`
 	}{}
 	if err := flickrPost(c, req, &resp); err != nil {
 		return "", wrapErr("uploading failed", err)
 	}
 	if resp.Stat != "ok" {
-		return "", resp.Err.Error()
+		return "", resp.Err.Err()
 	}
 	return resp.TicketID, nil
 }
@@ -169,27 +168,27 @@ func checkTicketsURL(c *Client, tickets []string) string {
 
 // Asynchronous photo upload status response.
 type TicketStatus struct {
-	ID       string `xml:"attr"`
-	Complete string `xml:"attr"`
-	Invalid  string `xml:"attr"`
-	PhotoID  string `xml:"attr"`
+	ID       string `xml:"id,attr"`
+	Complete string `xml:"complete,attr"`
+	Invalid  string `xml:"invalid,attr"`
+	PhotoID  string `xml:"photoid,attr"`
 }
 
 // Checks the status of async upload tickets (returned by Upload method, for
 // example).  Interface for
 // http://www.flickr.com/services/api/flickr.photos.upload.checkTickets.html
 // API method.
-func (c *Client) CheckTickets(tickets []string) (statuses []TicketStatus, err os.Error) {
+func (c *Client) CheckTickets(tickets []string) (statuses []TicketStatus, err error) {
 	r := struct {
-		Stat    string `xml:"attr"`
-		Err     flickrError
+		Stat    string `xml:"stat,attr"`
+		Err     flickrError `xml:"err"`
 		Tickets []TicketStatus `xml:"uploader>ticket"`
 	}{}
 	if err := flickrGet(c, checkTicketsURL(c, tickets), &r); err != nil {
 		return nil, err
 	}
 	if r.Stat != "ok" {
-		return nil, r.Err.Error()
+		return nil, r.Err.Err()
 	}
 	return r.Tickets, nil
 }
@@ -202,17 +201,17 @@ func getPhotoSetsURL(c *Client, userID string) string {
 }
 
 // Returns the list of photo sets of the specified user.
-func (c *Client) GetSets(userID string) ([]PhotoSet, os.Error) {
+func (c *Client) GetSets(userID string) ([]PhotoSet, error) {
 	r := struct {
-		Stat string `xml:"attr"`
-		Err  flickrError
+		Stat string `xml:"stat,attr"`
+		Err    flickrError `xml:"err"`
 		Sets []PhotoSet `xml:"photosets>photoset"`
 	}{}
 	if err := flickrGet(c, getPhotoSetsURL(c, userID), &r); err != nil {
 		return nil, err
 	}
 	if r.Stat != "ok" {
-		return nil, r.Err.Error()
+		return nil, r.Err.Err()
 	}
 	return r.Sets, nil
 }
@@ -225,16 +224,16 @@ func addToSetURL(c *Client, photoID, setID string) string {
 }
 
 // Adds a photo to a photoset.
-func (c *Client) AddPhotoToSet(photoID, setID string) os.Error {
+func (c *Client) AddPhotoToSet(photoID, setID string) error {
 	r := struct {
-		Stat string `xml:"attr"`
-		Err  flickrError
+		Stat string `xml:"stat,attr"`
+		Err    flickrError `xml:"err"`
 	}{}
 	if err := flickrGet(c, addToSetURL(c, photoID, setID), &r); err != nil {
 		return err
 	}
 	if r.Stat != "ok" {
-		return r.Err.Error()
+		return r.Err.Err()
 	}
 	return nil
 }

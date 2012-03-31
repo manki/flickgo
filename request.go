@@ -3,18 +3,18 @@ package flickgo
 import (
 	"bytes"
 	"crypto/md5"
+	"encoding/xml"
+	"errors"
 	"fmt"
-	"http"
 	"io"
 	"mime/multipart"
+	"net/http"
 	"net/textproto"
-	"os"
+	"net/url"
 	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
-	"url"
-	"xml"
 )
 
 const (
@@ -51,8 +51,8 @@ func clone(m map[string]string) map[string]string {
 	return r
 }
 
-func wrapErr(msg string, err os.Error) os.Error {
-	return os.NewError(msg + ": " + err.String())
+func wrapErr(msg string, err error) error {
+	return errors.New(msg + ": " + err.Error())
 }
 
 // Returns an API signature for the given arguments.
@@ -64,7 +64,7 @@ func sign(secret string, args map[string]string) string {
 	for _, k := range ks {
 		m.Write([]byte(k + args[k]))
 	}
-	return fmt.Sprintf("%x", m.Sum())
+	return fmt.Sprintf("%x", m.Sum(nil))
 }
 
 // Returns a signed URL.  path should be "auth" for auth requests and "rest"
@@ -112,26 +112,26 @@ func extractJSON(jsonp []byte) []byte {
 }
 
 // Processes a response and returns JSON content from it.
-func processReponse(c *Client, r *http.Response) (io.ReadCloser, os.Error) {
+func processReponse(c *Client, r *http.Response) (io.ReadCloser, error) {
 	// TODO: handle error response codes like 401 and 500.
 
 	return r.Body, nil
 }
 
-func parseXML(in io.Reader, resp interface{}, logger Debugfer) os.Error {
+func parseXML(in io.Reader, resp interface{}, logger Debugfer) error {
 	buf := bytes.NewBuffer(nil)
 	io.Copy(buf, in)
 	if logger != nil {
 		logger.Debugf("Parsing XML %s", string(buf.Bytes()))
 	}
-	if err := xml.Unmarshal(buf, resp); err != nil {
+	if err := xml.NewDecoder(buf).Decode(resp); err != nil {
 		return wrapErr("XML parsing failed", err)
 	}
 	return nil
 }
 
 // Sends a GET request to u and returns the response JSON.
-func fetch(c *Client, u string) (io.ReadCloser, os.Error) {
+func fetch(c *Client, u string) (io.ReadCloser, error) {
 	r, getErr := c.httpClient.Get(u)
 	if getErr != nil {
 		return nil, wrapErr("GET failed", getErr)
@@ -142,7 +142,7 @@ func fetch(c *Client, u string) (io.ReadCloser, os.Error) {
 // Sends a Flickr request, parses the response XML, and populates values in
 // resp.  url represents the complete Flickr request with the arguments signed
 // with the API secret.
-func flickrGet(c *Client, url_ string, resp interface{}) os.Error {
+func flickrGet(c *Client, url_ string, resp interface{}) error {
 	if c.Logger != nil {
 		c.Logger.Debugf("GET %v\n", url_)
 	}
@@ -154,9 +154,9 @@ func flickrGet(c *Client, url_ string, resp interface{}) os.Error {
 	return parseXML(in, resp, c.Logger)
 }
 
-func flickrPost(c *Client, req *http.Request, resp interface{}) os.Error {
+func flickrPost(c *Client, req *http.Request, resp interface{}) error {
 	if c.Logger != nil {
-		c.Logger.Debugf("POST %v\n", req.RawURL)
+		c.Logger.Debugf("POST %v\n", req.URL)
 	}
 	r, rErr := c.httpClient.Do(req)
 	if rErr != nil {
@@ -186,7 +186,7 @@ var contentType = map[string]string{
 }
 
 func multipartWriter(w io.Writer, filename string, photo []byte,
-args map[string]string) (*multipart.Writer, os.Error) {
+	args map[string]string) (*multipart.Writer, error) {
 	mpw := multipart.NewWriter(w)
 	for k, v := range args {
 		if err := mpw.WriteField(k, v); err != nil {
@@ -212,7 +212,7 @@ args map[string]string) (*multipart.Writer, os.Error) {
 }
 
 func uploadRequest(c *Client, filename string, photo []byte,
-args map[string]string) (*http.Request, os.Error) {
+	args map[string]string) (*http.Request, error) {
 	a := clone(args)
 	a["api_key"] = c.apiKey
 	a["auth_token"] = c.AuthToken

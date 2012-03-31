@@ -20,30 +20,30 @@ const (
 
 // Response for photo search requests.
 type SearchResponse struct {
-	Page    string  `xml:"attr"`
-	Pages   string  `xml:"attr"`
-	PerPage string  `xml:"attr"`
-	Total   string  `xml:"attr"`
-	Photos  []Photo `xml:"photo>"`
+	Page    string  `xml:"page,attr"`
+	Pages   string  `xml:"pages,attr"`
+	PerPage string  `xml:"perpage,attr"`
+	Total   string  `xml:"total,attr"`
+	Photos  []Photo `xml:"photo"`
 }
 
 // A Flickr user.
 type User struct {
-	UserName string `xml:"attr"`
-	NSID     string `xml:"attr"`
+	UserName string `xml:"username,attr"`
+	NSID     string `xml:"nsid,attr"`
 }
 
 // Represents a Flickr photo.
 type Photo struct {
-	ID       string `xml:"attr"`
-	Owner    string `xml:"attr"`
-	Secret   string `xml:"attr"`
-	Server   string `xml:"attr"`
-	Farm     string `xml:"attr"`
-	Title    string `xml:"attr"`
-	IsPublic string `xml:"attr"`
-	Width_T  string `xml:"attr"`
-	Height_T string `xml:"attr"`
+	ID       string `xml:"id,attr"`
+	Owner    string `xml:"owner,attr"`
+	Secret   string `xml:"secret,attr"`
+	Server   string `xml:"server,attr"`
+	Farm     string `xml:"farm,attr"`
+	Title    string `xml:"title,attr"`
+	IsPublic string `xml:"ispublic,attr"`
+	Width_T  string `xml:"width_t,attr"`
+	Height_T string `xml:"height_t,attr"`
 	// Photo's aspect ratio: width divided by height.
 	Ratio float64
 }
@@ -59,7 +59,7 @@ func (p *Photo) URL(size string) string {
 }
 
 type PhotoSet struct {
-	ID          string `xml:"attr"`
-	Title       string
-	Description string
+	ID          string `xml:"id,attr"`
+	Title       string `xml:"title"`
+	Description string `xml:"description"`
 }

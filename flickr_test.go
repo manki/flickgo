@@ -3,15 +3,15 @@ package flickgo
 import (
 	"bytes"
 	"crypto/md5"
+	"errors"
 	"fmt"
 	"hash"
-	"http"
 	"io"
 	"io/ioutil"
-	"os"
+	"net/http"
+	"net/url"
 	"strings"
 	"testing"
-	"url"
 )
 
 const (
@@ -25,7 +25,7 @@ func assert(t *testing.T, tag string, cond bool) {
 	}
 }
 
-func assertOK(t *testing.T, id string, err os.Error) {
+func assertOK(t *testing.T, id string, err error) {
 	if err != nil {
 		t.Errorf("[%s] unexpcted error: %v", id, err)
 	}
@@ -51,7 +51,7 @@ func TestSignedURL(t *testing.T) {
 	write(m, "abc"+"abc def")
 	write(m, "api_key"+"apap983 key")
 	write(m, "xyz"+"xyz")
-	sig := fmt.Sprintf("%x", m.Sum())
+	sig := fmt.Sprintf("%x", m.Sum(nil))
 
 	args := map[string]string{
 		"abc": "abc def",
@@ -71,14 +71,14 @@ func TestSignedURL(t *testing.T) {
 }
 
 type fakeBody struct {
-	error os.Error
+	error error
 	data  []byte
 	read  bool
 }
 
-func (f fakeBody) Read(buf []byte) (int, os.Error) {
+func (f fakeBody) Read(buf []byte) (int, error) {
 	if currentBody.read {
-		return 0, os.EOF
+		return 0, io.EOF
 	}
 
 	for i, b := range f.data {
@@ -87,7 +87,7 @@ func (f fakeBody) Read(buf []byte) (int, os.Error) {
 	currentBody.read = true
 	return len(f.data), f.error
 }
-func (f fakeBody) Close() os.Error {
+func (f fakeBody) Close() error {
 	return nil
 }
 
@@ -97,24 +97,24 @@ func (f fakeBody) Close() os.Error {
 var currentBody fakeBody
 
 type fakeRoundTripper struct {
-	err   os.Error
+	err   error
 	body  fakeBody
-	getFn func(r *http.Request) (*http.Response, os.Error)
+	getFn func(r *http.Request) (*http.Response, error)
 }
 
-func (f fakeRoundTripper) RoundTrip(r *http.Request) (*http.Response, os.Error) {
+func (f fakeRoundTripper) RoundTrip(r *http.Request) (*http.Response, error) {
 	return f.getFn(r)
 }
 
-func newHTTPClient(getFn func(*http.Request) (*http.Response, os.Error)) *http.Client {
+func newHTTPClient(getFn func(*http.Request) (*http.Response, error)) *http.Client {
 	rt := fakeRoundTripper{getFn: getFn}
 	return &http.Client{Transport: rt}
 }
 
 func TestFetchHttpGetFails(t *testing.T) {
 	url_ := "http://some.url/?arg=value"
-	err := os.NewError("random error")
-	getFn := func(r *http.Request) (*http.Response, os.Error) {
+	err := errors.New("random error")
+	getFn := func(r *http.Request) (*http.Response, error) {
 		assertEq(t, "url", url_, r.URL.String())
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func TestFetchHttpGetFails(t *testing.T) {
 
 	resp, e := fetch(c, url_)
 	assert(t, "resp", resp == nil)
-	assertEq(t, "err", fmt.Sprintf("GET failed: Get %s: %s", url_, err), e.String())
+	assertEq(t, "err", fmt.Sprintf("GET failed: Get %s: %s", url_, err), e.Error())
 }
 
 func TestFetchSuccess(t *testing.T) {
@@ -132,7 +132,7 @@ func TestFetchSuccess(t *testing.T) {
 	body := fakeBody{data: expectedData}
 	currentBody = body
 	resp := http.Response{Body: body}
-	getFn := func(r *http.Request) (*http.Response, os.Error) {
+	getFn := func(r *http.Request) (*http.Response, error) {
 		assertEq(t, "url", url_, r.URL.String())
 		return &resp, nil
 	}
@@ -234,14 +234,14 @@ func TestGetTokenAPIFailure(t *testing.T) {
 	body := fakeBody{data: xmlBytes}
 	currentBody = body
 	resp := http.Response{Body: body}
-	getFn := func(r *http.Request) (*http.Response, os.Error) {
+	getFn := func(r *http.Request) (*http.Response, error) {
 		return &resp, nil
 	}
 	c := New(apiKey, secret, newHTTPClient(getFn))
 	_, _, err := c.GetToken("878243")
 	assert(t, "err", err != nil)
-	assert(t, "message: "+err.String(),
-		strings.Contains(err.String(), "code 97: Missing signature"))
+	assert(t, "message: "+err.Error(),
+		strings.Contains(err.Error(), "code 97: Missing signature"))
 }
 
 func TestGetToken(t *testing.T) {
@@ -257,7 +257,7 @@ func TestGetToken(t *testing.T) {
 	body := fakeBody{data: xmlBytes}
 	currentBody = body
 	resp := http.Response{Body: body}
-	getFn := func(r *http.Request) (*http.Response, os.Error) {
+	getFn := func(r *http.Request) (*http.Response, error) {
 		return &resp, nil
 	}
 	c := New(apiKey, secret, newHTTPClient(getFn))
@@ -277,14 +277,14 @@ func TestUploadFails(t *testing.T) {
 	body := fakeBody{data: xmlBytes}
 	currentBody = body
 	resp := http.Response{Body: body}
-	postFn := func(r *http.Request) (*http.Response, os.Error) {
+	postFn := func(r *http.Request) (*http.Response, error) {
 		return &resp, nil
 	}
 	c := New(apiKey, secret, newHTTPClient(postFn))
 	ticket, err := c.Upload("filename", []byte("photo content"),
 		map[string]string{})
-	assert(t, "message: "+err.String(),
-		strings.Contains(err.String(), "code 5: Filetype was not recognised"))
+	assert(t, "message: "+err.Error(),
+		strings.Contains(err.Error(), "code 5: Filetype was not recognised"))
 	assertEq(t, "ticket", "", ticket)
 }
 
@@ -297,7 +297,7 @@ func TestUpload(t *testing.T) {
 	body := fakeBody{data: xmlBytes}
 	currentBody = body
 	resp := http.Response{Body: body}
-	postFn := func(r *http.Request) (*http.Response, os.Error) {
+	postFn := func(r *http.Request) (*http.Response, error) {
 		return &resp, nil
 	}
 	c := New(apiKey, secret, newHTTPClient(postFn))
@@ -341,7 +341,7 @@ func TestSearch(t *testing.T) {
 	body := fakeBody{data: xmlBytes}
 	currentBody = body
 	resp := http.Response{Body: body}
-	getFn := func(r *http.Request) (*http.Response, os.Error) {
+	getFn := func(r *http.Request) (*http.Response, error) {
 		return &resp, nil
 	}
 	c := New(apiKey, secret, newHTTPClient(getFn))
@@ -354,8 +354,8 @@ func TestSearch(t *testing.T) {
 	assertEq(t, "len photos", 2, len(r.Photos))
 
 	verify := func(p Photo, idx int,
-	id, owner, secret, server, farm, title, isPublic, widthT, heightT string,
-	ratio float64) {
+		id, owner, secret, server, farm, title, isPublic, widthT, heightT string,
+		ratio float64) {
 		assertEq(t, fmt.Sprintf("%d.id", idx), id, p.ID)
 		assertEq(t, fmt.Sprintf("%d.owner", idx), owner, p.Owner)
 		assertEq(t, fmt.Sprintf("%d.secret", idx), secret, p.Secret)
@@ -419,7 +419,7 @@ func TestCheckTickets(t *testing.T) {
 	body := fakeBody{data: xmlBytes}
 	currentBody = body
 	resp := http.Response{Body: body}
-	getFn := func(r *http.Request) (*http.Response, os.Error) {
+	getFn := func(r *http.Request) (*http.Response, error) {
 		return &resp, nil
 	}
 	c := New(apiKey, secret, newHTTPClient(getFn))
@@ -428,7 +428,7 @@ func TestCheckTickets(t *testing.T) {
 	assertEq(t, "len(statues)", 3, len(statuses))
 
 	verify := func(status TicketStatus, idx int,
-	id string, complete string, invalid string, photoid string) {
+		id string, complete string, invalid string, photoid string) {
 		assertEq(t, fmt.Sprintf("%d.id", idx), id, status.ID)
 		assertEq(t, fmt.Sprintf("%d.complete", idx), complete, status.Complete)
 		assertEq(t, fmt.Sprintf("%d.invalid", idx), invalid, status.Invalid)
@@ -471,7 +471,7 @@ func TestGetSets(t *testing.T) {
 	body := fakeBody{data: xmlBytes}
 	currentBody = body
 	resp := http.Response{Body: body}
-	getFn := func(r *http.Request) (*http.Response, os.Error) {
+	getFn := func(r *http.Request) (*http.Response, error) {
 		return &resp, nil
 	}
 	c := New(apiKey, secret, newHTTPClient(getFn))
@@ -480,7 +480,7 @@ func TestGetSets(t *testing.T) {
 	assertEq(t, "len(sets)", 2, len(sets))
 
 	verify := func(set PhotoSet, idx int,
-	id, title, description string) {
+		id, title, description string) {
 		assertEq(t, fmt.Sprintf("%d.id", idx), id, set.ID)
 		assertEq(t, fmt.Sprintf("%d.title", idx), title, set.Title)
 		assertEq(t, fmt.Sprintf("%d.description", idx), description, set.Description)
