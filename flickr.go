@@ -86,11 +86,11 @@ func (e *flickrError) Err() error {
 // See http://www.flickr.com/services/api/auth.howto.web.html.
 func (c *Client) GetToken(frob string) (string, *User, error) {
 	r := struct {
-		Stat string `xml:"stat,attr"`
+		Stat string      `xml:"stat,attr"`
 		Err  flickrError `xml:"err"`
 		Auth struct {
 			Token string `xml:"token"`
-			User  User `xml:"user"`
+			User  User   `xml:"user"`
 		} `xml:"auth"`
 	}{}
 	if err := flickrGet(c, getTokenURL(c, frob), &r); err != nil {
@@ -113,8 +113,8 @@ func searchURL(c *Client, args map[string]string) string {
 // http://www.flickr.com/services/api/flickr.photos.search.html.
 func (c *Client) Search(args map[string]string) (*SearchResponse, error) {
 	r := struct {
-		Stat   string `xml:"stat,attr"`
-		Err    flickrError `xml:"err"`
+		Stat   string         `xml:"stat,attr"`
+		Err    flickrError    `xml:"err"`
 		Photos SearchResponse `xml:"photos"`
 	}{}
 	if err := flickrGet(c, searchURL(c, args), &r); err != nil {
@@ -146,9 +146,9 @@ func (c *Client) Upload(name string, photo []byte,
 	}
 
 	resp := struct {
-		Stat     string `xml:"stat,attr"`
-		Err    flickrError `xml:"err"`
-		TicketID string `xml:"ticketid"`
+		Stat     string      `xml:"stat,attr"`
+		Err      flickrError `xml:"err"`
+		TicketID string      `xml:"ticketid"`
 	}{}
 	if err := flickrPost(c, req, &resp); err != nil {
 		return "", wrapErr("uploading failed", err)
@@ -180,8 +180,8 @@ type TicketStatus struct {
 // API method.
 func (c *Client) CheckTickets(tickets []string) (statuses []TicketStatus, err error) {
 	r := struct {
-		Stat    string `xml:"stat,attr"`
-		Err     flickrError `xml:"err"`
+		Stat    string         `xml:"stat,attr"`
+		Err     flickrError    `xml:"err"`
 		Tickets []TicketStatus `xml:"uploader>ticket"`
 	}{}
 	if err := flickrGet(c, checkTicketsURL(c, tickets), &r); err != nil {
@@ -203,9 +203,9 @@ func getPhotoSetsURL(c *Client, userID string) string {
 // Returns the list of photo sets of the specified user.
 func (c *Client) GetSets(userID string) ([]PhotoSet, error) {
 	r := struct {
-		Stat string `xml:"stat,attr"`
-		Err    flickrError `xml:"err"`
-		Sets []PhotoSet `xml:"photosets>photoset"`
+		Stat string      `xml:"stat,attr"`
+		Err  flickrError `xml:"err"`
+		Sets []PhotoSet  `xml:"photosets>photoset"`
 	}{}
 	if err := flickrGet(c, getPhotoSetsURL(c, userID), &r); err != nil {
 		return nil, err
@@ -226,8 +226,8 @@ func addToSetURL(c *Client, photoID, setID string) string {
 // Adds a photo to a photoset.
 func (c *Client) AddPhotoToSet(photoID, setID string) error {
 	r := struct {
-		Stat string `xml:"stat,attr"`
-		Err    flickrError `xml:"err"`
+		Stat string      `xml:"stat,attr"`
+		Err  flickrError `xml:"err"`
 	}{}
 	if err := flickrGet(c, addToSetURL(c, photoID, setID), &r); err != nil {
 		return err
