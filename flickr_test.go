@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"strconv"
 )
 
 const (
@@ -34,6 +35,16 @@ func assertOK(t *testing.T, id string, err error) {
 func assertEq(t *testing.T, id string, expected interface{}, actual interface{}) {
 	if expected != actual {
 		t.Errorf("[%s] expcted: <%v>, found <%v>", id, expected, actual)
+	}
+}
+
+func assertValuesEq(t *testing.T, id string, expected url.Values, actual url.Values) {
+	assertEq(t, id + ".len", len(expected), len(actual))
+	for k, v := range expected {
+		assertEq(t, id + ".item." + k + ".len", len(v), len(actual[k]))
+		for i, vv := range v {
+			assertEq(t, id + ".item." + k + "." + strconv.Itoa(i), vv, actual[k][i])
+		}
 	}
 }
 
@@ -65,9 +76,14 @@ func TestSignedURL(t *testing.T) {
 	qry.Add("api_key", "apap983 key")
 	qry.Add("api_sig", sig)
 
-	expected := "http://www.flickr.com/services/srv/?" + qry.Encode()
-	actual := signedURL(secret, "apap983 key", "srv", args)
-	assertEq(t, "url", expected, actual)
+	expected, _ := url.Parse("http://www.flickr.com/services/srv/?" + qry.Encode())
+	actual, err := url.Parse(signedURL(secret, "apap983 key", "srv", args))
+	assertOK(t, "urlParse", err)
+	assertEq(t, "urlScheme", expected.Scheme, actual.Scheme)
+	assertEq(t, "urlHost", expected.Host, actual.Host)
+	assertEq(t, "urlPath", expected.Path, actual.Path)
+	assertEq(t, "urlFragment", expected.Fragment, actual.Fragment)
+	assertValuesEq(t, "urlQuery", expected.Query(), actual.Query())
 }
 
 type fakeBody struct {
