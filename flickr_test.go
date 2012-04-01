@@ -10,9 +10,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"testing"
-	"strconv"
 )
 
 const (
@@ -39,11 +39,11 @@ func assertEq(t *testing.T, id string, expected interface{}, actual interface{})
 }
 
 func assertValuesEq(t *testing.T, id string, expected url.Values, actual url.Values) {
-	assertEq(t, id + ".len", len(expected), len(actual))
+	assertEq(t, id+".len", len(expected), len(actual))
 	for k, v := range expected {
-		assertEq(t, id + ".item." + k + ".len", len(v), len(actual[k]))
+		assertEq(t, id+".item."+k+".len", len(v), len(actual[k]))
 		for i, vv := range v {
-			assertEq(t, id + ".item." + k + "." + strconv.Itoa(i), vv, actual[k][i])
+			assertEq(t, id+".item."+k+"."+strconv.Itoa(i), vv, actual[k][i])
 		}
 	}
 }
