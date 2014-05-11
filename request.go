@@ -18,8 +18,8 @@ import (
 )
 
 const (
-	service   = "http://www.flickr.com/services"
-	uploadURL = "http://api.flickr.com/services/upload"
+	service   = "https://api.flickr.com/services"
+	uploadURL = "https://api.flickr.com/services/upload"
 )
 
 // Returns all keys of map m.
