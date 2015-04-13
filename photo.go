@@ -63,3 +63,35 @@ type PhotoSet struct {
 	Title       string `xml:"title"`
 	Description string `xml:"description"`
 }
+
+type GetLocationResponse struct {
+	Photo    string   `xml:"id,attr"`
+	Location Location `xml:"location"`
+}
+
+type Location struct {
+	Latitude  string `xml:"latitude,attr"`
+	Longitude string `xml:"longitude,attr"`
+	Accuracy  string `xml:"accuracy,attr"`
+	Context   string `xml:"context,attr"`
+	PlaceID   string `xml:"place_id,attr"`
+	Woeid     string `xml:"woeid,attr"`
+}
+
+type GetPersonResponse struct {
+	ID         string `xml:"id,attr"`
+	Nsid       string `xml:"nsid,attr"`
+	Ispro      string `xml:"ispro,attr"`
+	Iconserver string `xml:"iconserver,attr"`
+	Iconfarm   string `xml:"iconfarm,attr"`
+	Path_alias string `xml:"path_alias,attr"`
+	Gender     string `xml:"gender,attr"`
+	Ignored    string `xml:"ignored,attr"`
+	Contact    string `xml:"contact,attr"`
+	Friend     string `xml:"friend,attr"`
+	Family     string `xml:"family,attr"`
+	Revcontact string `xml:"revcontact,attr"`
+	Revfriend  string `xml:"revfriend,attr"`
+	Revfamily  string `xml:"revfamily,attr"`
+	Username   string `xml:"username"`
+}
