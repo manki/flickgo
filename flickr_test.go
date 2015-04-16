@@ -89,7 +89,7 @@ func TestSignedURL(t *testing.T) {
 type fakeBody struct {
 	error error
 	data  []byte
-	pos int
+	pos   int
 }
 
 func (f fakeBody) Read(buf []byte) (int, error) {
