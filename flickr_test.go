@@ -76,7 +76,7 @@ func TestSignedURL(t *testing.T) {
 	qry.Add("api_key", "apap983 key")
 	qry.Add("api_sig", sig)
 
-	expected, _ := url.Parse("http://www.flickr.com/services/srv/?" + qry.Encode())
+	expected, _ := url.Parse("https://api.flickr.com/services/srv/?" + qry.Encode())
 	actual, err := url.Parse(signedURL(secret, "apap983 key", "srv", args))
 	assertOK(t, "urlParse", err)
 	assertEq(t, "urlScheme", expected.Scheme, actual.Scheme)
@@ -89,19 +89,20 @@ func TestSignedURL(t *testing.T) {
 type fakeBody struct {
 	error error
 	data  []byte
-	read  bool
+	pos int
 }
 
 func (f fakeBody) Read(buf []byte) (int, error) {
-	if currentBody.read {
+	if currentBody.pos >= len(currentBody.data) {
 		return 0, io.EOF
 	}
 
-	for i, b := range f.data {
-		buf[i] = b
+	var i int
+	for i = 0; currentBody.pos < len(currentBody.data) && i < len(buf); i++ {
+		buf[i] = currentBody.data[currentBody.pos]
+		currentBody.pos++
 	}
-	currentBody.read = true
-	return len(f.data), f.error
+	return i, currentBody.error
 }
 func (f fakeBody) Close() error {
 	return nil
