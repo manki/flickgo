@@ -90,18 +90,20 @@ type fakeBody struct {
 	error error
 	data  []byte
 	read  bool
+	pos   int
 }
 
 func (f fakeBody) Read(buf []byte) (int, error) {
-	if currentBody.read {
+	if currentBody.pos >= len(currentBody.data) {
 		return 0, io.EOF
 	}
 
-	for i, b := range f.data {
-		buf[i] = b
+	var i int
+	for i = 0; currentBody.pos < len(currentBody.data) && i < len(buf); i++ {
+		buf[i] = currentBody.data[currentBody.pos]
+		currentBody.pos++
 	}
-	currentBody.read = true
-	return len(f.data), f.error
+	return i, currentBody.error
 }
 func (f fakeBody) Close() error {
 	return nil
@@ -506,14 +508,14 @@ func TestGetSets(t *testing.T) {
 }
 
 func TestGetPeopleInfo(t *testing.T) {
-  xmlStr := `<?xml version="1.0" encoding="utf-8" ?>
+	xmlStr := `<?xml version="1.0" encoding="utf-8" ?>
     <rsp stat="ok">
       <person id="88629109@N00" nsid="88629109@N00" ispro="1" can_buy_pro="0" iconserver="10" iconfarm="1" path_alias="ceonyc" has_stats="1" gender="M" ignored="0" contact="0" friend="0" family="0" revcontact="0" revfriend="0" revfamily="0">
         <username>ceonyc</username>
         <realname>Charlie</realname>
         <mbox_sha1sum>8930204c96ab27ab30348eca3806fb59d227a7bb</mbox_sha1sum>
         <location>New York, NY, USA</location>
-        <timezone label="Eastern Time (US & Canada)" offset="-05:00" />
+        <timezone label="Eastern Time (US &amp; Canada)" offset="-05:00" />
         <description>I'm an ordinary guy with nothing to lose.</description>
         <photosurl>https://www.flickr.com/photos/ceonyc/</photosurl>
         <profileurl>https://www.flickr.com/people/ceonyc/</profileurl>
@@ -525,36 +527,35 @@ func TestGetPeopleInfo(t *testing.T) {
         </photos>
       </person>
     </rsp>`
-  xmlBytes := bytes.NewBufferString(xmlStr).Bytes()
-  body := fakeBody{data: xmlBytes}
-  currentBody = body
-  resp := http.Response{Body: body}
+	xmlBytes := bytes.NewBufferString(xmlStr).Bytes()
+	body := fakeBody{data: xmlBytes}
+	currentBody = body
+	resp := http.Response{Body: body}
 
-  getFn := func(r *http.Request) (*http.Response, error) {
-    return &resp, nil
-  }
-  c := New(apiKey, secret, newHTTPClient(getFn))
-  authToken := "ase878723623"
-  c.AuthToken = authToken
+	getFn := func(r *http.Request) (*http.Response, error) {
+		return &resp, nil
+	}
+	c := New(apiKey, secret, newHTTPClient(getFn))
+	authToken := "ase878723623"
+	c.AuthToken = authToken
 
-  userID := "43554602@N02"
-  args := map[string]string{
-    "user_id": userID,
-  }
-  r, err := c.GetPeopleInfo(args)
+	userID := "43554602@N02"
+	args := map[string]string{
+		"user_id": userID,
+	}
+	r, err := c.GetPeopleInfo(args)
 
-  fmt.Println(err)
-  fmt.Println(r)
-
-  //assertOK(t, "parseURL", uErr)
-  //a, err := url.ParseQuery(u.RawQuery)
-  //assertOK(t, "parseQuery", err)
-  //assertEq(t, "method", "flickr.photosets.getList", a["method"][0])
-  //assertEq(t, "user_id", userID, a["user_id"][0])
+	assertOK(t, "GetPeopleInfo", err)
+	verify := func(set GetPersonResponse, idx string,
+		username string) {
+		assertEq(t, "ID", idx, set.ID)
+		assertEq(t, "Username", username, set.Username)
+	}
+	verify(*r, "88629109@N00", "ceonyc")
 }
 
 func TestGetLocation(t *testing.T) {
-  xmlStr := `<?xml version="1.0" encoding="utf-8" ?>
+	xmlStr := `<?xml version="1.0" encoding="utf-8" ?>
     <rsp stat="ok">
       <photo id="17134823816">
         <location latitude="40.730892" longitude="-73.997475" accuracy="16" context="0" place_id="C519PWNTVru_efdS" woeid="2414665">
@@ -566,30 +567,29 @@ func TestGetLocation(t *testing.T) {
         </location>
       </photo>
     </rsp>`
-  xmlBytes := bytes.NewBufferString(xmlStr).Bytes()
-  body := fakeBody{data: xmlBytes}
-  currentBody = body
-  resp := http.Response{Body: body}
+	xmlBytes := bytes.NewBufferString(xmlStr).Bytes()
+	body := fakeBody{data: xmlBytes}
+	currentBody = body
+	resp := http.Response{Body: body}
 
-  getFn := func(r *http.Request) (*http.Response, error) {
-    return &resp, nil
-  }
-  c := New(apiKey, secret, newHTTPClient(getFn))
-  authToken := "ase878723623"
-  c.AuthToken = authToken
+	getFn := func(r *http.Request) (*http.Response, error) {
+		return &resp, nil
+	}
+	c := New(apiKey, secret, newHTTPClient(getFn))
+	authToken := "ase878723623"
+	c.AuthToken = authToken
 
-  photoID := "17134823816"
-  args := map[string]string{
-    "photo_id": photoID,
-  }
-  r, err := c.GetLocation(args)
+	photoID := "17134823816"
+	args := map[string]string{
+		"photo_id": photoID,
+	}
+	r, err := c.GetLocation(args)
 
-  fmt.Println(err)
-  fmt.Println(r)
-
-  //assertOK(t, "parseURL", uErr)
-  //a, err := url.ParseQuery(u.RawQuery)
-  //assertOK(t, "parseQuery", err)
-  //assertEq(t, "method", "flickr.photosets.getList", a["method"][0])
-  //assertEq(t, "user_id", userID, a["user_id"][0])
+	assertOK(t, "GetLocationResponse", err)
+	verify := func(set GetLocationResponse, idx int, latitude string,
+		longitude string) {
+		assertEq(t, fmt.Sprintf("%d.id", idx), latitude, set.Location.Latitude)
+		assertEq(t, fmt.Sprintf("%d.id", idx), longitude, set.Location.Longitude)
+	}
+	verify(*r, 17134823816, "40.730892", "-73.997475")
 }
