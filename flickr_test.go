@@ -546,7 +546,7 @@ func TestGetPeopleInfo(t *testing.T) {
 	r, err := c.GetPeopleInfo(args)
 
 	assertOK(t, "GetPeopleInfo", err)
-	verify := func(set GetPersonResponse, idx string,
+	verify := func(set PersonResponse, idx string,
 		username string) {
 		assertEq(t, "ID", idx, set.ID)
 		assertEq(t, "Username", username, set.Username)
@@ -586,7 +586,7 @@ func TestGetLocation(t *testing.T) {
 	r, err := c.GetLocation(args)
 
 	assertOK(t, "GetLocationResponse", err)
-	verify := func(set GetLocationResponse, idx int, latitude string,
+	verify := func(set LocationResponse, idx int, latitude string,
 		longitude string) {
 		assertEq(t, fmt.Sprintf("%d.id", idx), latitude, set.Location.Latitude)
 		assertEq(t, fmt.Sprintf("%d.id", idx), longitude, set.Location.Longitude)

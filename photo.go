@@ -64,7 +64,7 @@ type PhotoSet struct {
 	Description string `xml:"description"`
 }
 
-type GetLocationResponse struct {
+type LocationResponse struct {
 	Photo    string   `xml:"id,attr"`
 	Location Location `xml:"location"`
 }
@@ -78,7 +78,7 @@ type Location struct {
 	Woeid     string `xml:"woeid,attr"`
 }
 
-type GetPersonResponse struct {
+type PersonResponse struct {
 	ID         string `xml:"id,attr"`
 	Nsid       string `xml:"nsid,attr"`
 	Ispro      string `xml:"ispro,attr"`

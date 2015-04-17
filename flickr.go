@@ -244,11 +244,11 @@ func geoLocation(c *Client, args map[string]string) string {
 }
 
 // implements: https://www.flickr.com/services/api/flickr.photos.geo.getLocation.html
-func (c *Client) GetLocation(args map[string]string) (*GetLocationResponse, error) {
+func (c *Client) GetLocation(args map[string]string) (*LocationResponse, error) {
 	r := struct {
-		Stat     string              `xml:"stat,attr"`
-		Err      flickrError         `xml:"err"`
-		Location GetLocationResponse `xml:"photo"`
+		Stat     string           `xml:"stat,attr"`
+		Err      flickrError      `xml:"err"`
+		Location LocationResponse `xml:"photo"`
 	}{}
 	if err := flickrGet(c, geoLocation(c, args), &r); err != nil {
 		return nil, err
@@ -267,11 +267,11 @@ func peopleInfo(c *Client, args map[string]string) string {
 }
 
 // implements: https://www.flickr.com/services/api/flickr.people.getInfo.html
-func (c *Client) GetPeopleInfo(args map[string]string) (*GetPersonResponse, error) {
+func (c *Client) GetPeopleInfo(args map[string]string) (*PersonResponse, error) {
 	r := struct {
-		Stat   string            `xml:"stat,attr"`
-		Err    flickrError       `xml:"err"`
-		Person GetPersonResponse `xml:"person"`
+		Stat   string         `xml:"stat,attr"`
+		Err    flickrError    `xml:"err"`
+		Person PersonResponse `xml:"person"`
 	}{}
 	if err := flickrGet(c, peopleInfo(c, args), &r); err != nil {
 		return nil, err
