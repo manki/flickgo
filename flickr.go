@@ -125,8 +125,8 @@ func (c *Client) Search(args map[string]string) (*SearchResponse, error) {
 	}
 
 	for i, ph := range r.Photos.Photos {
-		h, hErr := strconv.ParseFloat(ph.Height_T, 64)
-		w, wErr := strconv.ParseFloat(ph.Width_T, 64)
+		h, hErr := strconv.ParseFloat(ph.HeightT, 64)
+		w, wErr := strconv.ParseFloat(ph.WidthT, 64)
 		if hErr == nil && wErr == nil {
 			// ph is apparently just a copy of r.Photos.Photos[i], so we are
 			// updating the original.
@@ -235,5 +235,72 @@ func (c *Client) AddPhotoToSet(photoID, setID string) error {
 	if r.Stat != "ok" {
 		return r.Err.Err()
 	}
+	return nil
+}
+
+func getLocationURL(c *Client, args map[string]string) string {
+	argsCopy := clone(args)
+	return makeURL(c, "flickr.photos.geo.getLocation", argsCopy, true)
+}
+
+// Implements https://www.flickr.com/services/api/flickr.photos.geo.getLocation.html
+func (c *Client) GetLocation(args map[string]string) (*LocationResponse, error) {
+	r := struct {
+		Stat     string           `xml:"stat,attr"`
+		Err      flickrError      `xml:"err"`
+		Location LocationResponse `xml:"photo"`
+	}{}
+	if err := flickrGet(c, getLocationURL(c, args), &r); err != nil {
+		return nil, err
+	}
+
+	if r.Stat != "ok" {
+		return nil, r.Err.Err()
+	}
+
+	return &r.Location, nil
+}
+
+func getPeopleInfoURL(c *Client, args map[string]string) string {
+	argsCopy := clone(args)
+	return makeURL(c, "flickr.people.getInfo", argsCopy, true)
+}
+
+// Implements https://www.flickr.com/services/api/flickr.people.getInfo.html
+func (c *Client) GetPeopleInfo(args map[string]string) (*PersonResponse, error) {
+	r := struct {
+		Stat   string         `xml:"stat,attr"`
+		Err    flickrError    `xml:"err"`
+		Person PersonResponse `xml:"person"`
+	}{}
+	if err := flickrGet(c, getPeopleInfoURL(c, args), &r); err != nil {
+		return nil, err
+	}
+
+	if r.Stat != "ok" {
+		return nil, r.Err.Err()
+	}
+
+	return &r.Person, nil
+}
+
+func pushSubscribeURL(c *Client, args map[string]string) string {
+	argsCopy := clone(args)
+	return makeURL(c, "flickr.push.subscribe", argsCopy, true)
+}
+
+// Implements https://api.flickr.com/services/rest/?method=flickr.push.subscribe
+func (c *Client) PushSubscribe(args map[string]string) error {
+	r := struct {
+		Stat string      `xml:"stat,attr"`
+		Err  flickrError `xml:"err"`
+	}{}
+	if err := flickrGet(c, pushSubscribeURL(c, args), &r); err != nil {
+		return err
+	}
+	if r.Stat != "ok" {
+		return r.Err.Err()
+	}
+
 	return nil
 }

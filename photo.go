@@ -42,8 +42,8 @@ type Photo struct {
 	Farm     string `xml:"farm,attr"`
 	Title    string `xml:"title,attr"`
 	IsPublic string `xml:"ispublic,attr"`
-	Width_T  string `xml:"width_t,attr"`
-	Height_T string `xml:"height_t,attr"`
+	WidthT   string `xml:"width_t,attr"`
+	HeightT  string `xml:"height_t,attr"`
 	// Photo's aspect ratio: width divided by height.
 	Ratio float64
 }
@@ -62,4 +62,36 @@ type PhotoSet struct {
 	ID          string `xml:"id,attr"`
 	Title       string `xml:"title"`
 	Description string `xml:"description"`
+}
+
+type LocationResponse struct {
+	Photo    string   `xml:"id,attr"`
+	Location Location `xml:"location"`
+}
+
+type Location struct {
+	Latitude  string `xml:"latitude,attr"`
+	Longitude string `xml:"longitude,attr"`
+	Accuracy  string `xml:"accuracy,attr"`
+	Context   string `xml:"context,attr"`
+	PlaceID   string `xml:"place_id,attr"`
+	WOEID     string `xml:"woeid,attr"`
+}
+
+type PersonResponse struct {
+	ID             string `xml:"id,attr"`
+	NSID           string `xml:"nsid,attr"`
+	IsPro          string `xml:"ispro,attr"`
+	IconServer     string `xml:"iconserver,attr"`
+	IconFarm       string `xml:"iconfarm,attr"`
+	PathAlias      string `xml:"path_alias,attr"`
+	Gender         string `xml:"gender,attr"`
+	Ignored        string `xml:"ignored,attr"`
+	Contact        string `xml:"contact,attr"`
+	Friend         string `xml:"friend,attr"`
+	Family         string `xml:"family,attr"`
+	ReverseContact string `xml:"revcontact,attr"`
+	ReverseFriend  string `xml:"revfriend,attr"`
+	ReverseFamily  string `xml:"revfamily,attr"`
+	UserName       string `xml:"username"`
 }

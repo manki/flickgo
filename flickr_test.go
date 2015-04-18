@@ -380,8 +380,8 @@ func TestSearch(t *testing.T) {
 		assertEq(t, fmt.Sprintf("%d.farm", idx), farm, p.Farm)
 		assertEq(t, fmt.Sprintf("%d.title", idx), title, p.Title)
 		assertEq(t, fmt.Sprintf("%d.ispublic", idx), isPublic, p.IsPublic)
-		assertEq(t, fmt.Sprintf("%d.width_t", idx), widthT, p.Width_T)
-		assertEq(t, fmt.Sprintf("%d.height_t", idx), heightT, p.Height_T)
+		assertEq(t, fmt.Sprintf("%d.width_t", idx), widthT, p.WidthT)
+		assertEq(t, fmt.Sprintf("%d.height_t", idx), heightT, p.HeightT)
 		assertEq(t, fmt.Sprintf("%d.ratio", idx), ratio, p.Ratio)
 	}
 	verify(r.Photos[0], 0, "1234", "22@N01", "63562", "3", "1", "kitten", "0",
@@ -504,4 +504,111 @@ func TestGetSets(t *testing.T) {
 	}
 	verify(sets[0], 0, "12345", "Flowers", "All my flower pictures")
 	verify(sets[1], 1, "65656", "Sophie", "Photos and videos of Sophie")
+}
+
+func TestGetPeopleInfo(t *testing.T) {
+	xmlStr := `<?xml version="1.0" encoding="utf-8" ?>
+    <rsp stat="ok">
+      <person id="88629109@N00"
+          nsid="88629109@N00"
+          ispro="1"
+          can_buy_pro="0"
+          iconserver="10"
+          iconfarm="1"
+          path_alias="ceonyc"
+          has_stats="1"
+          gender="M"
+          ignored="0"
+          contact="0"
+          friend="0"
+          family="0"
+          revcontact="0"
+          revfriend="0"
+          revfamily="0">
+        <username>ceonyc</username>
+        <realname>Charlie</realname>
+        <mbox_sha1sum>8930204c96ab27ab30348eca3806fb59d227a7bb</mbox_sha1sum>
+        <location>New York, NY, USA</location>
+        <timezone label="Eastern Time (US &amp; Canada)" offset="-05:00" />
+        <description>I'm an ordinary guy with nothing to lose.</description>
+        <photosurl>https://www.flickr.com/photos/ceonyc/</photosurl>
+        <profileurl>https://www.flickr.com/people/ceonyc/</profileurl>
+        <mobileurl>https://m.flickr.com/photostream.gne?id=121792</mobileurl>
+        <photos>
+          <firstdatetaken>2000-06-15 17:45:35</firstdatetaken>
+          <firstdate>1112239005</firstdate>
+          <count>7746</count>
+        </photos>
+      </person>
+    </rsp>`
+	xmlBytes := bytes.NewBufferString(xmlStr).Bytes()
+	body := fakeBody{data: xmlBytes}
+	currentBody = body
+	resp := http.Response{Body: body}
+
+	getFn := func(r *http.Request) (*http.Response, error) {
+		return &resp, nil
+	}
+	c := New(apiKey, secret, newHTTPClient(getFn))
+	authToken := "ase878723623"
+	c.AuthToken = authToken
+
+	userID := "43554602@N02"
+	args := map[string]string{
+		"user_id": userID,
+	}
+	r, err := c.GetPeopleInfo(args)
+
+	assertOK(t, "GetPeopleInfo", err)
+	verify := func(set PersonResponse, idx string, username string) {
+		assertEq(t, "ID", idx, set.ID)
+		assertEq(t, "UserName", username, set.UserName)
+	}
+	verify(*r, "88629109@N00", "ceonyc")
+}
+
+func TestGetLocation(t *testing.T) {
+	xmlStr := `<?xml version="1.0" encoding="utf-8" ?>
+    <rsp stat="ok">
+      <photo id="17134823816">
+        <location latitude="40.730892"
+           longitude="-73.997475"
+            accuracy="16"
+            context="0"
+            place_id="C519PWNTVru_efdS"
+            woeid="2414665">
+          <neighbourhood place_id="C519PWNTVru_efdS"
+            woeid="2414665">Greenwich Village</neighbourhood>
+          <locality place_id=".skCPTpTVr.Q3WKW" woeid="2459115">New York</locality>
+          <county place_id="eFEYI5ZQUL_VqqpXvg" woeid="12589342">Manhattan</county>
+          <region place_id="ODHTuIhTUb75gdBu" woeid="2347591">New York</region>
+          <country place_id="nz.gsghTUb4c2WAecA" woeid="23424977">United States</country>
+        </location>
+      </photo>
+    </rsp>`
+	xmlBytes := bytes.NewBufferString(xmlStr).Bytes()
+	body := fakeBody{data: xmlBytes}
+	currentBody = body
+	resp := http.Response{Body: body}
+
+	getFn := func(r *http.Request) (*http.Response, error) {
+		return &resp, nil
+	}
+	c := New(apiKey, secret, newHTTPClient(getFn))
+	authToken := "ase878723623"
+	c.AuthToken = authToken
+
+	photoID := "17134823816"
+	args := map[string]string{
+		"photo_id": photoID,
+	}
+	r, err := c.GetLocation(args)
+
+	assertOK(t, "GetLocationResponse", err)
+	verify := func(set LocationResponse, idx int, latitude string,
+		longitude string) {
+		assertEq(t, fmt.Sprintf("%d.id", idx), latitude, set.Location.Latitude)
+		assertEq(t, fmt.Sprintf("%d.id", idx), longitude, set.Location.Longitude)
+	}
+	verify(*r, 17134823816, "40.730892", "-73.997475")
 }
