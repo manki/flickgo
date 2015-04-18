@@ -238,19 +238,19 @@ func (c *Client) AddPhotoToSet(photoID, setID string) error {
 	return nil
 }
 
-func geoLocation(c *Client, args map[string]string) string {
+func getLocationURL(c *Client, args map[string]string) string {
 	argsCopy := clone(args)
 	return makeURL(c, "flickr.photos.geo.getLocation", argsCopy, true)
 }
 
-// implements: https://www.flickr.com/services/api/flickr.photos.geo.getLocation.html
+// Implements https://www.flickr.com/services/api/flickr.photos.geo.getLocation.html
 func (c *Client) GetLocation(args map[string]string) (*LocationResponse, error) {
 	r := struct {
 		Stat     string           `xml:"stat,attr"`
 		Err      flickrError      `xml:"err"`
 		Location LocationResponse `xml:"photo"`
 	}{}
-	if err := flickrGet(c, geoLocation(c, args), &r); err != nil {
+	if err := flickrGet(c, getLocationURL(c, args), &r); err != nil {
 		return nil, err
 	}
 
@@ -261,19 +261,19 @@ func (c *Client) GetLocation(args map[string]string) (*LocationResponse, error) 
 	return &r.Location, nil
 }
 
-func peopleInfo(c *Client, args map[string]string) string {
+func getPeopleInfoURL(c *Client, args map[string]string) string {
 	argsCopy := clone(args)
 	return makeURL(c, "flickr.people.getInfo", argsCopy, true)
 }
 
-// implements: https://www.flickr.com/services/api/flickr.people.getInfo.html
+// Implements https://www.flickr.com/services/api/flickr.people.getInfo.html
 func (c *Client) GetPeopleInfo(args map[string]string) (*PersonResponse, error) {
 	r := struct {
 		Stat   string         `xml:"stat,attr"`
 		Err    flickrError    `xml:"err"`
 		Person PersonResponse `xml:"person"`
 	}{}
-	if err := flickrGet(c, peopleInfo(c, args), &r); err != nil {
+	if err := flickrGet(c, getPeopleInfoURL(c, args), &r); err != nil {
 		return nil, err
 	}
 
@@ -284,12 +284,12 @@ func (c *Client) GetPeopleInfo(args map[string]string) (*PersonResponse, error) 
 	return &r.Person, nil
 }
 
-// implements: https://api.flickr.com/services/rest/?method=flickr.push.subscribe
 func pushSubscribeURL(c *Client, args map[string]string) string {
 	argsCopy := clone(args)
 	return makeURL(c, "flickr.push.subscribe", argsCopy, true)
 }
 
+// Implements https://api.flickr.com/services/rest/?method=flickr.push.subscribe
 func (c *Client) PushSubscribe(args map[string]string) error {
 	r := struct {
 		Stat string      `xml:"stat,attr"`

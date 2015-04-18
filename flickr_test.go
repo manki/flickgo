@@ -509,7 +509,22 @@ func TestGetSets(t *testing.T) {
 func TestGetPeopleInfo(t *testing.T) {
 	xmlStr := `<?xml version="1.0" encoding="utf-8" ?>
     <rsp stat="ok">
-      <person id="88629109@N00" nsid="88629109@N00" ispro="1" can_buy_pro="0" iconserver="10" iconfarm="1" path_alias="ceonyc" has_stats="1" gender="M" ignored="0" contact="0" friend="0" family="0" revcontact="0" revfriend="0" revfamily="0">
+      <person id="88629109@N00"
+          nsid="88629109@N00"
+          ispro="1"
+          can_buy_pro="0"
+          iconserver="10"
+          iconfarm="1"
+          path_alias="ceonyc"
+          has_stats="1"
+          gender="M"
+          ignored="0"
+          contact="0"
+          friend="0"
+          family="0"
+          revcontact="0"
+          revfriend="0"
+          revfamily="0">
         <username>ceonyc</username>
         <realname>Charlie</realname>
         <mbox_sha1sum>8930204c96ab27ab30348eca3806fb59d227a7bb</mbox_sha1sum>
@@ -545,8 +560,7 @@ func TestGetPeopleInfo(t *testing.T) {
 	r, err := c.GetPeopleInfo(args)
 
 	assertOK(t, "GetPeopleInfo", err)
-	verify := func(set PersonResponse, idx string,
-		username string) {
+	verify := func(set PersonResponse, idx string, username string) {
 		assertEq(t, "ID", idx, set.ID)
 		assertEq(t, "Username", username, set.Username)
 	}
@@ -557,8 +571,14 @@ func TestGetLocation(t *testing.T) {
 	xmlStr := `<?xml version="1.0" encoding="utf-8" ?>
     <rsp stat="ok">
       <photo id="17134823816">
-        <location latitude="40.730892" longitude="-73.997475" accuracy="16" context="0" place_id="C519PWNTVru_efdS" woeid="2414665">
-          <neighbourhood place_id="C519PWNTVru_efdS" woeid="2414665">Greenwich Village</neighbourhood>
+        <location latitude="40.730892"
+           longitude="-73.997475"
+            accuracy="16"
+            context="0"
+            place_id="C519PWNTVru_efdS"
+            woeid="2414665">
+          <neighbourhood place_id="C519PWNTVru_efdS"
+            woeid="2414665">Greenwich Village</neighbourhood>
           <locality place_id=".skCPTpTVr.Q3WKW" woeid="2459115">New York</locality>
           <county place_id="eFEYI5ZQUL_VqqpXvg" woeid="12589342">Manhattan</county>
           <region place_id="ODHTuIhTUb75gdBu" woeid="2347591">New York</region>
