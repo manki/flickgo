@@ -125,8 +125,8 @@ func (c *Client) Search(args map[string]string) (*SearchResponse, error) {
 	}
 
 	for i, ph := range r.Photos.Photos {
-		h, hErr := strconv.ParseFloat(ph.Height_T, 64)
-		w, wErr := strconv.ParseFloat(ph.Width_T, 64)
+		h, hErr := strconv.ParseFloat(ph.HeightT, 64)
+		w, wErr := strconv.ParseFloat(ph.WidthT, 64)
 		if hErr == nil && wErr == nil {
 			// ph is apparently just a copy of r.Photos.Photos[i], so we are
 			// updating the original.

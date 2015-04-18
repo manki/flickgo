@@ -380,8 +380,8 @@ func TestSearch(t *testing.T) {
 		assertEq(t, fmt.Sprintf("%d.farm", idx), farm, p.Farm)
 		assertEq(t, fmt.Sprintf("%d.title", idx), title, p.Title)
 		assertEq(t, fmt.Sprintf("%d.ispublic", idx), isPublic, p.IsPublic)
-		assertEq(t, fmt.Sprintf("%d.width_t", idx), widthT, p.Width_T)
-		assertEq(t, fmt.Sprintf("%d.height_t", idx), heightT, p.Height_T)
+		assertEq(t, fmt.Sprintf("%d.width_t", idx), widthT, p.WidthT)
+		assertEq(t, fmt.Sprintf("%d.height_t", idx), heightT, p.HeightT)
 		assertEq(t, fmt.Sprintf("%d.ratio", idx), ratio, p.Ratio)
 	}
 	verify(r.Photos[0], 0, "1234", "22@N01", "63562", "3", "1", "kitten", "0",
@@ -562,7 +562,7 @@ func TestGetPeopleInfo(t *testing.T) {
 	assertOK(t, "GetPeopleInfo", err)
 	verify := func(set PersonResponse, idx string, username string) {
 		assertEq(t, "ID", idx, set.ID)
-		assertEq(t, "Username", username, set.Username)
+		assertEq(t, "UserName", username, set.UserName)
 	}
 	verify(*r, "88629109@N00", "ceonyc")
 }
