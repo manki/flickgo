@@ -68,6 +68,13 @@ func (c *Client) AuthURL(perms string) string {
 	return signedURL(c.secret, c.apiKey, "auth", args)
 }
 
+func (c *Client) AuthDesktopURL(perms string, frob string) string {
+	args := map[string]string{}
+	args["perms"] = perms
+	args["frob"] = frob
+	return signedURL(c.secret, c.apiKey, "auth", args)
+}
+
 // Returns the signed URL for Flickr's flickr.auth.getToken request.
 func getTokenURL(c *Client, frob string) string {
 	return makeURL(c, "flickr.auth.getToken", map[string]string{"frob": frob}, true)
@@ -303,4 +310,25 @@ func (c *Client) PushSubscribe(args map[string]string) error {
 	}
 
 	return nil
+}
+
+func getFrobURL(c *Client) string {
+	return makeURL(c, "flickr.auth.getFrob", map[string]string{}, true)
+}
+
+// Implements https://www.flickr.com/services/api/flickr.auth.getFrob.html
+func (c *Client) GetFrob() (string, error) {
+	r := struct {
+		Stat string      `xml:"stat,attr"`
+		Frob string      `xml:"frob"`
+		Err  flickrError `xml:"err"`
+	}{}
+	if err := flickrGet(c, getFrobURL(c), &r); err != nil {
+		return "", err
+	}
+	if r.Stat != "ok" {
+		return "", r.Err.Err()
+	}
+
+	return r.Frob, nil
 }
